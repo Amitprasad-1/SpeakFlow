@@ -54,20 +54,26 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         aria-hidden="true"
       >
         <svg
-          width={iconDimensions * 0.62}
-          height={iconDimensions * 0.62}
+          width={iconDimensions * 0.64}
+          height={iconDimensions * 0.64}
           viewBox="0 0 24 24"
           fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Dynamic flow soundwaves progressing upwards */}
-          <path d="M4 12c0-3.3 2.7-6 6-6s6 2.7 6 6" />
-          <path d="M8 12c0-1.1.9-2 2-2s2 .9 2 2" />
-          <path d="M12 12v6" />
-          <path d="M16 10l4-4m0 0h-3m3 0v3" />
+          {/* Modern Voice Speech Flow Bubble */}
+          <path
+            d="M12 2C6.48 2 2 6.03 2 11C2 13.88 3.5 16.42 5.86 17.98L4.5 22L9.2 20.35C10.09 20.76 11.02 21 12 21C17.52 21 22 16.97 22 11C22 6.03 17.52 2 12 2Z"
+            fill="currentColor"
+            fillOpacity="0.22"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Pulsating Voice Frequency Waves */}
+          <rect x="7.5" y="9" width="2" height="5" rx="1" fill="currentColor" />
+          <rect x="11" y="6" width="2" height="11" rx="1" fill="currentColor" />
+          <rect x="14.5" y="8" width="2" height="7" rx="1" fill="currentColor" />
         </svg>
       </div>
 
