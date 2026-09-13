@@ -1,0 +1,26 @@
+{
+  "name": "speakflow-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SpeakFlow - Production AI English Speech, Pronunciation & Communication Coach",
+  "workspaces": [
+    "packages/*",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@speakflow/web",
+    "build:core": "npm run build --workspace=@speakflow/core",
+    "build:web": "npm run build --workspace=@speakflow/web",
+    "build": "npm run build:core && npm run build:web",
+    "test": "node --test packages/core/test/**/*.test.mjs"
+  },
+  "keywords": [
+    "speech-coach",
+    "pronunciation",
+    "fluency",
+    "ai",
+    "english-learning"
+  ],
+  "author": "SpeakFlow Team",
+  "license": "MIT"
+}

@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "SpeakFlow",
+    "slug": "speakflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#090d16"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.speakflow.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "SpeakFlow requires microphone access to analyze pronunciation, speaking pace, and articulation in real time.",
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#090d16"
+      },
+      "package": "com.speakflow.app",
+      "permissions": [
+        "RECORD_AUDIO",
+        "INTERNET",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "SpeakFlow needs access to your microphone to provide interactive voice coaching."
+        }
+      ]
+    ]
+  }
+}
