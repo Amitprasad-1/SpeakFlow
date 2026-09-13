@@ -185,6 +185,113 @@ export class ContentValidator {
   }
 
   /**
+   * Validates an entire Daily Practice Session (PROMPT 4 standards).
+   */
+  public static validateDailyPracticeSession(session: any): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!session) {
+      return { isValid: false, errors: ['Session is null or undefined.'], warnings: [] };
+    }
+
+    if (!session.sessionId || typeof session.sessionId !== 'string') {
+      errors.push('Session ID is missing or invalid.');
+    }
+    if (!session.localDate || !/^\d{4}-\d{2}-\d{2}$/.test(session.localDate)) {
+      errors.push('Local date must be a valid YYYY-MM-DD string.');
+    }
+    if (!session.stages || !Array.isArray(session.stages) || session.stages.length !== 6) {
+      errors.push(`Expected exactly 6 stages in daily practice session, found ${session.stages?.length || 0}.`);
+      return { isValid: false, errors, warnings };
+    }
+
+    const seenExerciseIds = new Set<string>();
+
+    // Stage 1: Vocal Warm-up (strictly 2 to 3 exercises)
+    const stage1 = session.stages[0];
+    const warmups = stage1?.data?.exercises;
+    if (!warmups || !Array.isArray(warmups) || warmups.length < 2 || warmups.length > 3) {
+      errors.push(`Stage 1 violation: expected 2-3 vocal warmups, received ${warmups?.length || 0}.`);
+    } else {
+      warmups.forEach((w: any) => {
+        if (seenExerciseIds.has(w.id)) errors.push(`Duplicate exercise ID detected: ${w.id}`);
+        seenExerciseIds.add(w.id);
+      });
+    }
+
+    // Stage 2: Tongue Twisters (strictly 3 to 5 twisters)
+    const stage2 = session.stages[1];
+    const twisters = stage2?.data?.twisters;
+    if (!twisters || !Array.isArray(twisters) || twisters.length < 3 || twisters.length > 5) {
+      errors.push(`Stage 2 violation: expected 3-5 tongue twisters, received ${twisters?.length || 0}.`);
+    } else {
+      twisters.forEach((t: any) => {
+        if (seenExerciseIds.has(t.id)) errors.push(`Duplicate exercise ID detected: ${t.id}`);
+        seenExerciseIds.add(t.id);
+      });
+    }
+
+    // Stage 3: Reading Aloud (strictly 160-200 words, exactly 6 vocabulary words)
+    const stage3 = session.stages[2];
+    const passage = stage3?.data?.passage;
+    if (!passage) {
+      errors.push('Stage 3 violation: reading passage is missing.');
+    } else {
+      const passageValidation = this.validateReadingPassage(passage);
+      if (!passageValidation.isValid) {
+        errors.push(...passageValidation.errors);
+      }
+      warnings.push(...passageValidation.warnings);
+      if (seenExerciseIds.has(passage.id)) errors.push(`Duplicate exercise ID detected: ${passage.id}`);
+      seenExerciseIds.add(passage.id);
+    }
+
+    // Stage 4: Practical Sentences (strictly 10 to 15 sentences)
+    const stage4 = session.stages[3];
+    const sentences = stage4?.data?.sentences;
+    if (!sentences || !Array.isArray(sentences) || sentences.length < 10 || sentences.length > 15) {
+      errors.push(`Stage 4 violation: expected 10-15 practical sentences, received ${sentences?.length || 0}.`);
+    } else {
+      sentences.forEach((s: any) => {
+        if (seenExerciseIds.has(s.id)) errors.push(`Duplicate sentence ID detected: ${s.id}`);
+        seenExerciseIds.add(s.id);
+      });
+    }
+
+    // Stage 5: Speaking Practice (strictly 1 to 3 prompts)
+    const stage5 = session.stages[4];
+    const prompts = stage5?.data?.prompts;
+    if (!prompts || !Array.isArray(prompts) || prompts.length < 1 || prompts.length > 3) {
+      errors.push(`Stage 5 violation: expected 1-3 speaking prompts, received ${prompts?.length || 0}.`);
+    } else {
+      prompts.forEach((p: any) => {
+        if (seenExerciseIds.has(p.id)) errors.push(`Duplicate speaking prompt ID detected: ${p.id}`);
+        seenExerciseIds.add(p.id);
+      });
+    }
+
+    // Stage 6: Listening Exercise (1 exercise with 2-3 questions)
+    const stage6 = session.stages[5];
+    const listening = stage6?.data?.exercise;
+    if (!listening || !listening.dialogueTranscript) {
+      errors.push('Stage 6 violation: listening exercise is missing or empty.');
+    } else {
+      if (!listening.questions || listening.questions.length < 2 || listening.questions.length > 3) {
+        errors.push(`Stage 6 violation: expected 2-3 comprehension questions, received ${listening.questions?.length || 0}.`);
+      }
+      if (seenExerciseIds.has(listening.id)) errors.push(`Duplicate listening ID detected: ${listening.id}`);
+      seenExerciseIds.add(listening.id);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
    * Basic safety guardrail ensuring content is professional, clean, and educational.
    */
   private static checkContentSafety(text: string): ValidationResult {
@@ -203,3 +310,4 @@ export class ContentValidator {
     };
   }
 }
+

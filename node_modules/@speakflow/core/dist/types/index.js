@@ -18,4 +18,5 @@ __exportStar(require("./speech.js"), exports);
 __exportStar(require("./user.js"), exports);
 __exportStar(require("./lesson.js"), exports);
 __exportStar(require("./assessment.js"), exports);
+__exportStar(require("./intelligence.js"), exports);
 //# sourceMappingURL=index.js.map

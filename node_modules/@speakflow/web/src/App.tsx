@@ -3,20 +3,39 @@ import { AppShell, AppNavTab } from './components/layout/AppShell';
 import { ThemeMode } from './components/common/ThemeToggle';
 import { HomeView } from './components/views/HomeView';
 import { PracticeView } from './components/views/PracticeView';
+import { ConversationView } from './components/views/ConversationView';
 import { ProgressView } from './components/views/ProgressView';
 import { ProfileView } from './components/views/ProfileView';
 import { DesignSystemView } from './components/views/DesignSystemView';
 import { OnboardingContainer } from './components/onboarding/OnboardingContainer';
 import { demoUser, UserProfileData } from './data/demoData';
 import { BrowserStorage } from './storage/BrowserStorage';
+import { AppRoute, getRouteFromPathname } from './routes';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<AppNavTab>('home');
+  // 1. First-class URL route state
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>(() => {
+    if (typeof window !== 'undefined') {
+      const routeFromUrl = getRouteFromPathname(window.location.pathname);
+      // If direct URL is /onboarding, respect it immediately
+      if (routeFromUrl === 'onboarding') return 'onboarding';
+      if (window.location.hash === '#onboarding') return 'onboarding';
+      if (routeFromUrl !== 'home') return routeFromUrl;
 
-  // User profile from BrowserStorage or demoUser
+      // If at root '/' or '/home', check if user has ever completed onboarding or skipped
+      const savedProfile = BrowserStorage.getUserProfile();
+      if (!savedProfile || !savedProfile.isOnboarded) {
+        return 'onboarding';
+      }
+      return 'home';
+    }
+    return 'home';
+  });
+
+  // 2. User profile from BrowserStorage or demoUser
   const [user, setUser] = useState<UserProfileData>(() => {
     const saved = BrowserStorage.getUserProfile();
-    if (saved) {
+    if (saved && saved.name && saved.name !== 'Alex Chen' && saved.name !== 'Alex' && saved.name.trim() !== '') {
       return {
         id: saved.id,
         name: saved.name,
@@ -29,7 +48,7 @@ export const App: React.FC = () => {
     return demoUser;
   });
 
-  // Baseline assessment status
+  // 3. Baseline assessment status
   const [baselineStatus, setBaselineStatus] = useState<'completed' | 'in_progress' | 'skipped' | 'not_started'>(() => {
     const savedAsmt = BrowserStorage.getBaselineAssessment();
     if (savedAsmt) return savedAsmt.status;
@@ -38,16 +57,7 @@ export const App: React.FC = () => {
     return 'not_started';
   });
 
-  // Decide if onboarding should be active
-  const [isOnboardingActive, setIsOnboardingActive] = useState<boolean>(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#onboarding') {
-      return true;
-    }
-    const savedProfile = BrowserStorage.getUserProfile();
-    return !savedProfile || !savedProfile.isOnboarded;
-  });
-
-  // Theme mode: 'dark' | 'light' | 'system'
+  // 4. Theme mode: 'dark' | 'light' | 'system'
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('speakflow_theme_mode') as ThemeMode;
     if (saved === 'dark' || saved === 'light' || saved === 'system') {
@@ -59,6 +69,24 @@ export const App: React.FC = () => {
     }
     return 'dark';
   });
+
+  // Browser History Navigation Sync
+  const navigateTo = (route: AppRoute) => {
+    const targetPath = route === 'home' ? '/' : `/${route}`;
+    if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+    setCurrentRoute(route);
+  };
+
+  // Sync route on browser back/forward buttons (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(getRouteFromPathname(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Apply theme to document element and listen for OS changes when in 'system' mode
   useEffect(() => {
@@ -84,65 +112,85 @@ export const App: React.FC = () => {
     }
   }, [themeMode]);
 
-  // If onboarding is active, render the dedicated onboarding flow
-  if (isOnboardingActive) {
+  // Render Onboarding when on /onboarding route
+  if (currentRoute === 'onboarding') {
     return (
       <OnboardingContainer
         onComplete={(newProfile) => {
+          const sanitizedName =
+            newProfile.name === 'Alex Chen' || newProfile.name === 'Alex' || !newProfile.name?.trim()
+              ? 'Learner'
+              : newProfile.name;
+
           setUser({
             id: newProfile.id,
-            name: newProfile.name,
+            name: sanitizedName,
             level: newProfile.level,
             dailyGoalMinutes: newProfile.dailyGoalMinutes,
-            avatarInitials: newProfile.name ? newProfile.name.slice(0, 2).toUpperCase() : 'SF',
+            avatarInitials: sanitizedName ? sanitizedName.slice(0, 2).toUpperCase() : 'SF',
             goals: newProfile.goals
           });
           setBaselineStatus(newProfile.baselineAssessmentCompleted ? 'completed' : 'skipped');
-          setIsOnboardingActive(false);
-          setActiveTab('home');
-          if (window.location.hash === '#onboarding') {
-            window.location.hash = '';
-          }
+          navigateTo('home');
         }}
         onExit={() => {
-          setIsOnboardingActive(false);
           const asmt = BrowserStorage.getBaselineAssessment();
           setBaselineStatus(asmt?.status || 'in_progress');
-          if (window.location.hash === '#onboarding') {
-            window.location.hash = '';
-          }
+          navigateTo('home');
         }}
       />
     );
   }
 
+  // Active navigation tab for AppShell
+  const activeNavTab: AppNavTab = currentRoute === 'design-system' ? 'design-system' : (currentRoute as AppNavTab);
+
   return (
     <AppShell
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
+      activeTab={activeNavTab}
+      onTabChange={(tab) => navigateTo(tab)}
       themeMode={themeMode}
       onThemeModeChange={setThemeMode}
     >
-      {activeTab === 'home' && (
+      {currentRoute === 'home' && (
         <HomeView
           user={user}
-          onNavigateToPractice={() => setActiveTab('practice')}
-          onStartBaseline={() => setIsOnboardingActive(true)}
+          onNavigateToPractice={() => navigateTo('practice')}
+          onNavigateToConversation={() => navigateTo('conversation')}
+          onStartBaseline={() => navigateTo('onboarding')}
           baselineStatus={baselineStatus}
         />
       )}
-      {activeTab === 'practice' && <PracticeView />}
-      {activeTab === 'progress' && <ProgressView />}
-      {activeTab === 'profile' && (
+      {currentRoute === 'practice' && (
+        <PracticeView
+          onReturnToHome={() => navigateTo('home')}
+          onSessionComplete={() => {
+            // Refresh user state from storage
+            const updatedProfile = BrowserStorage.getUserProfile();
+            if (updatedProfile) {
+              setUser((prev) => ({
+                ...prev,
+                name: updatedProfile.name,
+                level: updatedProfile.level
+              }));
+            }
+          }}
+        />
+      )}
+      {currentRoute === 'conversation' && (
+        <ConversationView onReturnToHome={() => navigateTo('home')} />
+      )}
+      {currentRoute === 'progress' && <ProgressView />}
+      {currentRoute === 'profile' && (
         <ProfileView
           user={user}
           themeMode={themeMode}
           onThemeModeChange={setThemeMode}
           onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
-          onRetakeAssessment={() => setIsOnboardingActive(true)}
+          onRetakeAssessment={() => navigateTo('onboarding')}
         />
       )}
-      {activeTab === 'design-system' && <DesignSystemView />}
+      {currentRoute === 'design-system' && <DesignSystemView />}
     </AppShell>
   );
 };

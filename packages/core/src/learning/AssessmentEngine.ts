@@ -449,9 +449,12 @@ export class AssessmentEngine {
         ? assessment.dailyPracticePreference
         : 15;
 
+    const rawName = assessment.name?.trim() || '';
+    const cleanName = (rawName === 'Alex Chen' || rawName === 'Alex' || rawName === '') ? 'Learner' : rawName;
+
     return {
       id: assessment.userId || `user_${Date.now()}`,
-      name: assessment.name.trim() || 'Learner',
+      name: cleanName,
       goals: assessment.goals as any,
       level: levelMapping,
       dailyGoalMinutes: dailyMinutes,

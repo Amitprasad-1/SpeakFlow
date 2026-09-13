@@ -148,4 +148,57 @@ export interface SessionResult {
     totalPracticeMinutes: number;
     compositeScore: number;
 }
+export type PracticeSessionStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
+export type StageType = 'vocal_warmup' | 'tongue_twisters' | 'reading_aloud' | 'practical_sentences' | 'speaking_practice' | 'listening_exercise';
+export interface DailyPracticeStage {
+    stageNumber: number;
+    type: StageType;
+    title: string;
+    shortDescription: string;
+    estimatedMinutes: number;
+    isCompleted: boolean;
+    isSkipped: boolean;
+    data: VocalWarmupStageData | TongueTwisterStageData | ReadingStageData | SentencesStageData | SpeakingStageData | ListeningStageData;
+    result?: any;
+}
+export interface VocalWarmupStageData {
+    exercises: VocalExercise[];
+}
+export interface TongueTwisterStageData {
+    twisters: TongueTwister[];
+}
+export interface ReadingStageData {
+    passage: ReadingPassage;
+}
+export interface SentencesStageData {
+    sentences: PracticeSentence[];
+    category: string;
+}
+export interface SpeakingStageData {
+    prompts: SpeakingScenario[];
+    mode: 'guided' | 'free';
+}
+export interface ListeningStageData {
+    exercise: ListeningExercise;
+}
+export interface DailyPracticeSession {
+    sessionId: string;
+    userId: string;
+    localDate: string;
+    createdAt: string;
+    lessonTitle: string;
+    lessonTheme: string;
+    estimatedDuration: number;
+    focusAreas: string[];
+    focusSounds: PhonemeCategory[];
+    stages: DailyPracticeStage[];
+    currentStageIndex: number;
+    status: PracticeSessionStatus;
+    startedAt?: string;
+    completedAt?: string;
+    totalElapsedSeconds: number;
+    completionPercentage: number;
+    stageResults: Record<number, any>;
+    notes?: string;
+}
 //# sourceMappingURL=lesson.d.ts.map

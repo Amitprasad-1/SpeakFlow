@@ -6,10 +6,11 @@ import {
   Mic,
   BarChart3,
   User,
-  Layers
+  Layers,
+  MessageSquare
 } from 'lucide-react';
 
-export type AppNavTab = 'home' | 'practice' | 'progress' | 'profile' | 'design-system';
+export type AppNavTab = 'home' | 'practice' | 'conversation' | 'progress' | 'profile' | 'design-system';
 
 export interface AppShellProps {
   activeTab: AppNavTab;
@@ -29,6 +30,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const primaryNavItems: { id: AppNavTab; label: string; icon: any }[] = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'practice', label: 'Practice', icon: Mic },
+    { id: 'conversation', label: 'AI Coach', icon: MessageSquare },
     { id: 'progress', label: 'Progress', icon: BarChart3 },
     { id: 'profile', label: 'Profile', icon: User }
   ];

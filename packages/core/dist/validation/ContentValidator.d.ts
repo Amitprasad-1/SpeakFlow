@@ -30,6 +30,10 @@ export declare class ContentValidator {
      */
     static validateDailyLesson(lesson: DailyLesson): ValidationResult;
     /**
+     * Validates an entire Daily Practice Session (PROMPT 4 standards).
+     */
+    static validateDailyPracticeSession(session: any): ValidationResult;
+    /**
      * Basic safety guardrail ensuring content is professional, clean, and educational.
      */
     private static checkContentSafety;

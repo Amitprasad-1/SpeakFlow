@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ContinuePracticeCard,
   StatCard,
@@ -21,7 +21,9 @@ import {
   ProgressSummaryData,
   VocabularyItem
 } from '../../data/demoData';
-import { Clock, Award, Target, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { BrowserStorage } from '../../storage/BrowserStorage';
+import { DailyPracticeSession } from '@speakflow/core';
+import { Clock, Award, Target, Sparkles, ArrowRight, CheckCircle2, MessageSquare } from 'lucide-react';
 
 export interface HomeViewProps {
   user?: UserProfileData;
@@ -30,6 +32,7 @@ export interface HomeViewProps {
   progress?: ProgressSummaryData;
   wordOfTheDay?: VocabularyItem;
   onNavigateToPractice: () => void;
+  onNavigateToConversation?: () => void;
   onStartBaseline?: () => void;
   baselineStatus?: 'completed' | 'in_progress' | 'skipped' | 'not_started';
 }
@@ -41,19 +44,48 @@ export const HomeView: React.FC<HomeViewProps> = ({
   progress = demoProgress,
   wordOfTheDay = demoWordOfTheDay,
   onNavigateToPractice,
+  onNavigateToConversation,
   onStartBaseline,
   baselineStatus
 }) => {
+  // Query today's real session state if available in BrowserStorage
+  const realSession: DailyPracticeSession | null = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    return BrowserStorage.getDailySession(todayStr);
+  }, []);
+
+  const completedCount = useMemo(() => {
+    if (!realSession) return 0;
+    return realSession.stages.filter((s) => s.isCompleted || s.isSkipped).length;
+  }, [realSession]);
+
+  const practiceButtonLabel = useMemo(() => {
+    if (!realSession || realSession.status === 'not_started') {
+      return "Start Today's Practice";
+    }
+    if (realSession.status === 'completed') {
+      return "Review Today's Practice";
+    }
+    return "Continue Today's Practice";
+  }, [realSession]);
+
+  const sessionTitle = realSession ? realSession.lessonTitle : lesson.title;
+  const focusSound = realSession?.focusSounds[0] ? realSession.focusSounds[0].replace('_', ' / ') : lesson.focusSound;
+  const stageProgress = realSession ? `${completedCount} of ${realSession.stages.length} completed` : lesson.stageProgress;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
-      {/* Optional Baseline Completion Banner if skipped or in-progress */}
-      {(baselineStatus === 'skipped' || baselineStatus === 'in_progress') && onStartBaseline && (
+      {/* Secondary Baseline Assessment Entry */}
+      {onStartBaseline && (
         <Card
           variant="default"
           padding="md"
           style={{
-            background: 'var(--color-primary-subtle)',
-            border: '1px solid var(--color-primary)',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -62,28 +94,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <Sparkles size={20} color="var(--color-primary)" style={{ flexShrink: 0 }} />
+            <Sparkles size={18} color="var(--color-primary)" style={{ flexShrink: 0 }} />
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                {baselineStatus === 'in_progress' ? 'Resume Your English Baseline' : 'Personalize Your English Baseline'}
+              <div style={{ fontWeight: 600, fontSize: 'var(--text-body)', color: 'var(--color-text-primary)' }}>
+                {baselineStatus === 'in_progress'
+                  ? 'Your baseline assessment is in progress'
+                  : baselineStatus === 'completed'
+                  ? 'Baseline assessment completed'
+                  : 'Personalize your English baseline'}
               </div>
               <p style={{ fontSize: 'var(--text-body-sm)', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                Complete a quick 3-minute speaking check to further tune your daily practice plan.
+                {baselineStatus === 'completed'
+                  ? 'You can retake the assessment anytime to recalibrate your focus sounds.'
+                  : 'Complete a quick 3-minute speaking check to personalize your daily practice plan.'}
               </p>
             </div>
           </div>
           <button
             onClick={onStartBaseline}
-            className="speakflow-btn btn-variant-primary"
+            className="speakflow-btn btn-variant-secondary"
             style={{
-              padding: 'var(--space-2) var(--space-4)',
+              padding: 'var(--space-2) var(--space-3-5)',
               borderRadius: 'var(--radius-md)',
               fontSize: 'var(--text-body-sm)',
               fontWeight: 600,
               cursor: 'pointer'
             }}
+            id="btn-home-baseline"
           >
-            {baselineStatus === 'in_progress' ? 'Resume Baseline' : 'Complete Baseline'}
+            {baselineStatus === 'in_progress'
+              ? 'Resume Baseline'
+              : baselineStatus === 'completed'
+              ? 'Retake Assessment'
+              : 'Take Baseline Assessment'}
           </button>
         </Card>
       )}
@@ -113,13 +156,75 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* 2. Priority 1 & 2: What should I practice today? (Visual Focal Point) */}
       <ContinuePracticeCard
-        title={lesson.title}
-        focusSound={lesson.focusSound}
-        stageProgress={lesson.stageProgress}
-        durationEstimate={lesson.durationEstimate}
-        buttonLabel="Start Today's Practice"
+        title={sessionTitle}
+        focusSound={focusSound}
+        stageProgress={stageProgress}
+        durationEstimate={realSession ? `${realSession.estimatedDuration} mins` : lesson.durationEstimate}
+        buttonLabel={practiceButtonLabel}
         onStart={onNavigateToPractice}
       />
+
+      {/* AI Coach Studio Quick Access */}
+      {onNavigateToConversation && (
+        <Card
+          variant="conversation"
+          padding="md"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
+            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(16, 185, 129, 0.06) 100%)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(37, 99, 235, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-primary)'
+              }}
+            >
+              <MessageSquare size={22} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <span style={{ fontWeight: 700, fontSize: 'var(--text-body)', color: 'var(--color-text-primary)' }}>
+                  Conversational AI Coach Studio
+                </span>
+                <Badge variant="primary" size="sm">Interactive</Badge>
+              </div>
+              <p className="typography-caption" style={{ color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                Practice simulated job interviews, workplace dialogues, and spontaneous speaking with instant natural feedback.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToConversation}
+            className="speakflow-btn btn-variant-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              padding: 'var(--space-2) var(--space-4)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--text-body-sm)',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            id="btn-home-ai-coach"
+          >
+            <span>Start Conversation</span>
+            <ArrowRight size={16} />
+          </button>
+        </Card>
+      )}
 
       {/* 3. Priority 3: Today's Progress & Consistency */}
       <section>

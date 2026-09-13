@@ -189,3 +189,79 @@ export interface SessionResult {
   totalPracticeMinutes: number;
   compositeScore: number;
 }
+
+export type PracticeSessionStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
+
+export type StageType =
+  | 'vocal_warmup'
+  | 'tongue_twisters'
+  | 'reading_aloud'
+  | 'practical_sentences'
+  | 'speaking_practice'
+  | 'listening_exercise';
+
+export interface DailyPracticeStage {
+  stageNumber: number; // 1 to 6
+  type: StageType;
+  title: string;
+  shortDescription: string;
+  estimatedMinutes: number;
+  isCompleted: boolean;
+  isSkipped: boolean;
+  data:
+    | VocalWarmupStageData
+    | TongueTwisterStageData
+    | ReadingStageData
+    | SentencesStageData
+    | SpeakingStageData
+    | ListeningStageData;
+  result?: any;
+}
+
+export interface VocalWarmupStageData {
+  exercises: VocalExercise[]; // strictly 2 to 3 selected exercises
+}
+
+export interface TongueTwisterStageData {
+  twisters: TongueTwister[]; // strictly 3 to 5 selected twisters
+}
+
+export interface ReadingStageData {
+  passage: ReadingPassage; // strictly 160-200 words with 6 vocabulary items
+}
+
+export interface SentencesStageData {
+  sentences: PracticeSentence[]; // strictly 10-15 sentences
+  category: string;
+}
+
+export interface SpeakingStageData {
+  prompts: SpeakingScenario[]; // strictly 1-3 prompts
+  mode: 'guided' | 'free';
+}
+
+export interface ListeningStageData {
+  exercise: ListeningExercise; // 1 dialogue with 2-3 comprehension questions
+}
+
+export interface DailyPracticeSession {
+  sessionId: string;
+  userId: string;
+  localDate: string; // YYYY-MM-DD
+  createdAt: string;
+  lessonTitle: string;
+  lessonTheme: string;
+  estimatedDuration: number; // in minutes (default 15)
+  focusAreas: string[];
+  focusSounds: PhonemeCategory[];
+  stages: DailyPracticeStage[];
+  currentStageIndex: number; // 0 to 5
+  status: PracticeSessionStatus;
+  startedAt?: string;
+  completedAt?: string;
+  totalElapsedSeconds: number;
+  completionPercentage: number;
+  stageResults: Record<number, any>;
+  notes?: string;
+}
+

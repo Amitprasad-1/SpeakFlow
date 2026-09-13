@@ -11,6 +11,8 @@ import {
 } from '../../data/demoData';
 import { Shield, CheckCircle2, UserCheck, Clock, Flame, Award } from 'lucide-react';
 
+import { BrowserStorage } from '../../storage/BrowserStorage';
+
 export interface ProfileViewProps {
   user?: UserProfileData;
   streak?: StreakData;
@@ -29,6 +31,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onThemeModeChange,
   onRetakeAssessment
 }) => {
+  const savedProfile = BrowserStorage.getUserProfile();
+  const effectiveStreak = savedProfile?.streak?.currentStreak ?? streak.currentStreak;
+  const effectiveMinutes = savedProfile?.totalMinutesPracticed ?? progress.totalMinutesPracticed;
+  const effectiveSessions = savedProfile?.completedLessonsCount ?? progress.completedSessionsCount;
   const initials =
     user.avatarInitials ||
     (user.name
@@ -164,7 +170,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <Flame size={24} color="var(--color-warning)" />
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-warning)' }}>
-            {streak.currentStreak} Days
+            {effectiveStreak} Days
           </div>
           <div className="typography-body-sm" style={{ color: 'var(--color-text-secondary)' }}>
             Active Practice Streak
@@ -176,7 +182,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <Clock size={24} color="var(--color-primary)" />
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-primary)' }}>
-            {progress.totalMinutesPracticed} Mins
+            {effectiveMinutes} Mins
           </div>
           <div className="typography-body-sm" style={{ color: 'var(--color-text-secondary)' }}>
             Total Practice Completed
@@ -188,7 +194,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <Award size={24} color="var(--color-accent)" />
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)' }}>
-            {progress.completedSessionsCount} Sessions
+            {effectiveSessions} Sessions
           </div>
           <div className="typography-body-sm" style={{ color: 'var(--color-text-secondary)' }}>
             Lessons Finished

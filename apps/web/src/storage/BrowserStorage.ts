@@ -1,9 +1,14 @@
 import {
   UserProfile,
   DailyLesson,
+  DailyPracticeSession,
+  ContentHistoryData,
   SessionResult,
   PhonemeWeaknessTracker,
-  BaselineAssessment
+  BaselineAssessment,
+  LearningMemory,
+  ConversationSession,
+  AdaptiveIntelligenceEngine
 } from '@speakflow/core';
 
 const STORAGE_KEYS = {
@@ -12,7 +17,11 @@ const STORAGE_KEYS = {
   SESSION_HISTORY: 'speakflow_session_history_v1',
   SETTINGS: 'speakflow_settings_v1',
   API_KEYS: 'speakflow_api_keys_v1',
-  BASELINE_ASSESSMENT: 'speakflow_baseline_assessment_v1'
+  BASELINE_ASSESSMENT: 'speakflow_baseline_assessment_v1',
+  CONTENT_HISTORY: 'speakflow_content_history_v1',
+  DAILY_SESSION_PREFIX: 'speakflow_daily_session_',
+  LEARNING_MEMORY: 'speakflow_learning_memory_v1',
+  CONVERSATIONS_HISTORY: 'speakflow_conversations_v1'
 };
 
 export interface AppSettings {
@@ -56,7 +65,13 @@ export class BrowserStorage {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
       if (!data) return null;
-      return JSON.parse(data);
+      const profile: UserProfile = JSON.parse(data);
+      // Migrate and sanitize any legacy demo names from earlier versions
+      if (profile && (profile.name === 'Alex Chen' || profile.name === 'Alex' || !profile.name?.trim())) {
+        profile.name = 'Learner';
+        this.saveUserProfile(profile);
+      }
+      return profile;
     } catch {
       return null;
     }
@@ -113,6 +128,105 @@ export class BrowserStorage {
       localStorage.setItem(STORAGE_KEYS.ACTIVE_LESSON, JSON.stringify(lesson));
     } catch (e) {
       console.warn('Failed to save lesson:', e);
+    }
+  }
+
+  public static getDailySession(localDate: string): DailyPracticeSession | null {
+    try {
+      const data = localStorage.getItem(`${STORAGE_KEYS.DAILY_SESSION_PREFIX}${localDate}`);
+      if (!data) return null;
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+
+  public static saveDailySession(session: DailyPracticeSession): void {
+    try {
+      localStorage.setItem(
+        `${STORAGE_KEYS.DAILY_SESSION_PREFIX}${session.localDate}`,
+        JSON.stringify(session)
+      );
+    } catch (e) {
+      console.warn('Failed to save daily practice session:', e);
+    }
+  }
+
+  public static getAllDailySessions(): DailyPracticeSession[] {
+    try {
+      const sessions: DailyPracticeSession[] = [];
+      if (typeof window === 'undefined') return [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(STORAGE_KEYS.DAILY_SESSION_PREFIX)) {
+          const item = localStorage.getItem(key);
+          if (item) {
+            try {
+              sessions.push(JSON.parse(item));
+            } catch {}
+          }
+        }
+      }
+      return sessions.sort((a, b) => (b.localDate || '').localeCompare(a.localDate || ''));
+    } catch {
+      return [];
+    }
+  }
+
+  public static getContentHistory(): ContentHistoryData {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.CONTENT_HISTORY);
+      if (!data) return { records: [] };
+      return JSON.parse(data);
+    } catch {
+      return { records: [] };
+    }
+  }
+
+  public static saveContentHistory(history: ContentHistoryData): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CONTENT_HISTORY, JSON.stringify(history));
+    } catch (e) {
+      console.warn('Failed to save content history:', e);
+    }
+  }
+
+  public static getLearningMemory(userId: string = 'learner'): LearningMemory {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.LEARNING_MEMORY);
+      if (!data) return AdaptiveIntelligenceEngine.createDefaultMemory(userId);
+      return JSON.parse(data);
+    } catch {
+      return AdaptiveIntelligenceEngine.createDefaultMemory(userId);
+    }
+  }
+
+  public static saveLearningMemory(memory: LearningMemory): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.LEARNING_MEMORY, JSON.stringify(memory));
+    } catch (e) {
+      console.warn('Failed to save learning memory:', e);
+    }
+  }
+
+  public static getSavedConversations(): ConversationSession[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS_HISTORY);
+      if (!data) return [];
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  public static saveConversation(conversation: ConversationSession): void {
+    try {
+      const existing = this.getSavedConversations();
+      const filtered = existing.filter(c => c.id !== conversation.id);
+      filtered.unshift(conversation);
+      localStorage.setItem(STORAGE_KEYS.CONVERSATIONS_HISTORY, JSON.stringify(filtered.slice(0, 20)));
+    } catch (e) {
+      console.warn('Failed to save conversation:', e);
     }
   }
 

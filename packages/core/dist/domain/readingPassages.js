@@ -256,6 +256,261 @@ exports.READING_PASSAGES_CATALOG = [
                 targetPhoneme: 'TH'
             }
         ]
+    },
+    // 4. Topic: Workplace & Leadership Communication (164 words)
+    {
+        id: 'passage_workplace_lead_1',
+        title: 'The Cadence of Transformational Leadership',
+        topic: 'Workplace',
+        cefrLevel: 'B2',
+        targetPhonemes: ['R_L', 'TH', 'T_D'],
+        wordCount: 164,
+        suggestedDurationSeconds: 80,
+        passageText: 'Executive leadership fundamentally hinges upon communicative clarity, deliberate pacing, and transparent strategic alignment across decentralized organizational structures. When senior directors deliver quarterly corporate objectives, their vocal resonance and measured pronunciation profoundly influence team engagement, productivity, and psychological safety. Rushing through critical operational transitions often generates widespread anxiety, whereas deliberate pauses allow ambitious professionals to absorb complex institutional changes thoughtfully. Effective leaders articulate ambiguous expectations clearly, eliminating the lingering friction that frequently paralyses cross-functional departments. Moreover, maintaining steady diaphragmatic breath support prevents the vocal strain that undermines executive presence during prolonged board presentations. By consciously emphasizing operative nouns and crisply executing terminal consonants, corporate spokespersons project authentic authority without sounding rigid or authoritarian. When unexpected logistical crises emerge, a calm conversational cadence de-escalates workplace tension, encouraging teammates to collaborate constructively rather than retreat into defensive posturing. As remote enterprises continually redefine global collaboration, mastering purposeful verbal projection transforms routine operational meetings into inspirational milestones that galvanize collective innovation and organizational momentum across diverse international borders.',
+        vocabularyWords: [
+            {
+                id: 'vocab_work_1',
+                word: 'deliberate',
+                phoneticIpa: '/dɪˈlɪb.ər.ət/',
+                syllableBreakdown: 'de-lib-er-ate',
+                primaryStressSyllable: 2,
+                definition: 'Done consciously and intentionally; careful and unhurried in motion or decision.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'deliberate pacing, and transparent alignment across decentralized organizational structures.',
+                collocations: ['deliberate action', 'deliberate pacing', 'deliberate choice'],
+                targetPhoneme: 'R_L'
+            },
+            {
+                id: 'vocab_work_2',
+                word: 'organizational',
+                phoneticIpa: '/ˌɔː.ɡən.aɪˈzeɪ.ʃən.əl/',
+                syllableBreakdown: 'or-gan-i-za-tion-al',
+                primaryStressSyllable: 4,
+                definition: 'Relating to an organized body, institution, or systematic structure.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'alignment across decentralized organizational structures.',
+                collocations: ['organizational culture', 'organizational structure', 'organizational goals'],
+                targetPhoneme: 'R_L'
+            },
+            {
+                id: 'vocab_work_3',
+                word: 'psychological',
+                phoneticIpa: '/ˌsaɪ.kəˈlɒdʒ.ɪ.kəl/',
+                syllableBreakdown: 'psy-cho-log-i-cal',
+                primaryStressSyllable: 3,
+                definition: 'Related to the mental and emotional state of a person or group.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'profoundly influence team engagement and psychological safety.',
+                collocations: ['psychological safety', 'psychological wellbeing', 'psychological impact'],
+                targetPhoneme: 'K_G'
+            },
+            {
+                id: 'vocab_work_4',
+                word: 'authoritarian',
+                phoneticIpa: '/ɔːˌθɒr.ɪˈteə.ri.ən/',
+                syllableBreakdown: 'au-thor-i-tar-i-an',
+                primaryStressSyllable: 4,
+                definition: 'Enforcing strict obedience to authority at the expense of personal freedom.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'project authentic authority without sounding rigid or authoritarian.',
+                collocations: ['authoritarian regime', 'authoritarian style', 'authoritarian leadership'],
+                targetPhoneme: 'TH'
+            },
+            {
+                id: 'vocab_work_5',
+                word: 'constructively',
+                phoneticIpa: '/kənˈstrʌk.tɪv.li/',
+                syllableBreakdown: 'con-struc-tive-ly',
+                primaryStressSyllable: 2,
+                definition: 'In a way that has or is intended to have a useful or beneficial purpose.',
+                partOfSpeech: 'adverb',
+                exampleInPassage: 'encouraging teammates to collaborate constructively rather than retreat',
+                collocations: ['collaborate constructively', 'respond constructively', 'criticize constructively'],
+                targetPhoneme: 'CONSONANT_CLUSTERS'
+            },
+            {
+                id: 'vocab_work_6',
+                word: 'galvanize',
+                phoneticIpa: '/ˈɡæl.və.naɪz/',
+                syllableBreakdown: 'gal-va-nize',
+                primaryStressSyllable: 1,
+                definition: 'To shock or excite someone into taking immediate or determined action.',
+                partOfSpeech: 'verb',
+                exampleInPassage: 'inspirational milestones that galvanize collective innovation and organizational momentum',
+                collocations: ['galvanize support', 'galvanize effort', 'galvanize communities'],
+                targetPhoneme: 'K_G'
+            }
+        ]
+    },
+    // 5. Topic: Travel & Global Exploration (164 words)
+    {
+        id: 'passage_travel_exp_1',
+        title: 'The Sensory Architecture of Global Journeys',
+        topic: 'Travel',
+        cefrLevel: 'B2',
+        targetPhonemes: ['V_W', 'R_L', 'S_SH'],
+        wordCount: 164,
+        suggestedDurationSeconds: 78,
+        passageText: 'Immersing oneself in foreign landscapes awakens sensory appreciation, dismantling habitual perspectives through direct exposure to unfamiliar cultural traditions and environments. Navigating vibrant labyrinthine markets, tranquil ancient valleys, or bustling maritime ports requires world travelers to observe subtle nonverbal cues and embrace conversational vulnerability. When navigating complex linguistic barriers abroad, deliberate enunciation and patient listening bridge cultural divides far more gracefully than hurried volume. Observing localized speech melodies enhances our awareness of intonation, revealing how cadence communicates hospitality, humor, and respect across geographical regions. Furthermore, international voyages continually cultivate personal adaptability, teaching explorers to navigate logistical unpredictability without succumbing to frustration or impatience. Each international destination presents unique culinary traditions, architectural heritage, and historical narratives that expand our worldview substantially. By actively conversing with regional residents, international travelers transform superficial sightseeing into meaningful cultural exchanges that foster enduring cross-border connections. Ultimately, authentic exploration is not measured merely by geographical distance traversed, but by the intellectual humility and expressive depth cultivated through every thoughtful intercultural dialogue.',
+        vocabularyWords: [
+            {
+                id: 'vocab_travel_1',
+                word: 'labyrinthine',
+                phoneticIpa: '/ˌlæb.əˈrɪn.θaɪn/',
+                syllableBreakdown: 'lab-y-rin-thine',
+                primaryStressSyllable: 3,
+                definition: 'Intricate, confusing, and maze-like in structure or arrangement.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'Navigating vibrant labyrinthine markets, tranquil ancient valleys',
+                collocations: ['labyrinthine streets', 'labyrinthine corridors', 'labyrinthine pathways'],
+                targetPhoneme: 'TH'
+            },
+            {
+                id: 'vocab_travel_2',
+                word: 'vulnerability',
+                phoneticIpa: '/ˌvʌl.nər.əˈbɪl.ə.ti/',
+                syllableBreakdown: 'vul-ner-a-bil-i-ty',
+                primaryStressSyllable: 4,
+                definition: 'The quality of being open to emotional exposure or uncertainty.',
+                partOfSpeech: 'noun',
+                exampleInPassage: 'observe nonverbal cues and embrace conversational vulnerability.',
+                collocations: ['emotional vulnerability', 'embrace vulnerability', 'demonstrate vulnerability'],
+                targetPhoneme: 'V_W'
+            },
+            {
+                id: 'vocab_travel_3',
+                word: 'unpredictability',
+                phoneticIpa: '/ˌʌn.prɪˌdɪk.təˈbɪl.ə.ti/',
+                syllableBreakdown: 'un-pre-dict-a-bil-i-ty',
+                primaryStressSyllable: 5,
+                definition: 'The quality of not being able to be guessed or predicted in advance.',
+                partOfSpeech: 'noun',
+                exampleInPassage: 'teaching explorers to navigate logistical unpredictability without succumbing',
+                collocations: ['logistical unpredictability', 'weather unpredictability', 'market unpredictability'],
+                targetPhoneme: 'B_P'
+            },
+            {
+                id: 'vocab_travel_4',
+                word: 'substantially',
+                phoneticIpa: '/səbˈstæn.ʃəl.i/',
+                syllableBreakdown: 'sub-stan-tial-ly',
+                primaryStressSyllable: 2,
+                definition: 'To a great or significant degree; considerably.',
+                partOfSpeech: 'adverb',
+                exampleInPassage: 'historical narratives that expand our worldview substantially.',
+                collocations: ['increase substantially', 'differ substantially', 'expand substantially'],
+                targetPhoneme: 'S_SH'
+            },
+            {
+                id: 'vocab_travel_5',
+                word: 'sightseeing',
+                phoneticIpa: '/ˈsaɪtˌsiː.ɪŋ/',
+                syllableBreakdown: 'sight-see-ing',
+                primaryStressSyllable: 1,
+                definition: 'The activity of visiting interesting and historic places as a tourist.',
+                partOfSpeech: 'noun',
+                exampleInPassage: 'transform superficial sightseeing into meaningful cultural exchanges',
+                collocations: ['go sightseeing', 'sightseeing tour', 'urban sightseeing'],
+                targetPhoneme: 'S_SH'
+            },
+            {
+                id: 'vocab_travel_6',
+                word: 'intercultural',
+                phoneticIpa: '/ˌɪn.təˈkʌl.tʃər.əl/',
+                syllableBreakdown: 'in-ter-cul-tur-al',
+                primaryStressSyllable: 3,
+                definition: 'Taking place between or involving different cultures.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'expressive depth cultivated through every intercultural dialogue.',
+                collocations: ['intercultural communication', 'intercultural dialogue', 'intercultural competence'],
+                targetPhoneme: 'CH_J'
+            }
+        ]
+    },
+    // 6. Topic: Science & Sustainable Nature (166 words)
+    {
+        id: 'passage_nature_eco_1',
+        title: 'Biomimicry and the Architecture of Ecological Balance',
+        topic: 'Nature',
+        cefrLevel: 'B2',
+        targetPhonemes: ['B_P', 'S_SH', 'R_L'],
+        wordCount: 166,
+        suggestedDurationSeconds: 79,
+        passageText: 'Natural ecosystems embody millions of years of evolutionary optimization, inspiring innovative engineering paradigms through the expanding science of biomimicry. By rigorously examining how photosynthetic organisms regulate energy, civil architects design resilient structures that harmonize passively with surrounding thermal environments. For instance, termite mounds regulate internal ventilation flawlessly through subterranean convection currents, demonstrating sustainable cooling mechanisms that drastically reduce conventional electricity consumption. Scientists investigating marine biology also discover hydrodynamic efficiencies in whale fins that enhance aerodynamic wind turbine performance substantially. Articulating these biological discoveries clearly allows researchers to persuade municipal planners to invest in restorative ecological infrastructure. Clear scientific exposition translates intricate biochemical pathways into actionable urban development policies. Furthermore, sustainable stewardship requires communities to adopt regenerative practices that restore degraded waterways and safeguard biodiversity. As urbanization accelerates globally, integrating ecological wisdom into modern construction projects preserves natural equilibria while elevating human health. Through disciplined verbal communication, environmental scientists advocate persuasively for sustainable conservation, inspiring cross-disciplinary teams to engineer prosperous futures in harmony with the natural world.',
+        vocabularyWords: [
+            {
+                id: 'vocab_nature_1',
+                word: 'photosynthetic',
+                phoneticIpa: '/ˌfoʊ.toʊ.sɪnˈθɛt.ɪk/',
+                syllableBreakdown: 'pho-to-syn-thet-ic',
+                primaryStressSyllable: 4,
+                definition: 'Relating to or using the process by which green plants synthesize nutrients using sunlight.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'examining how photosynthetic organisms regulate energy',
+                collocations: ['photosynthetic organisms', 'photosynthetic activity', 'photosynthetic rate'],
+                targetPhoneme: 'TH'
+            },
+            {
+                id: 'vocab_nature_2',
+                word: 'subterranean',
+                phoneticIpa: '/ˌsʌb.təˈreɪ.ni.ən/',
+                syllableBreakdown: 'sub-ter-ra-ne-an',
+                primaryStressSyllable: 3,
+                definition: 'Existing, occurring, or done under the earth’s surface.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'regulate internal ventilation flawlessly through subterranean convection currents',
+                collocations: ['subterranean passages', 'subterranean water', 'subterranean chambers'],
+                targetPhoneme: 'R_L'
+            },
+            {
+                id: 'vocab_nature_3',
+                word: 'hydrodynamic',
+                phoneticIpa: '/ˌhaɪ.drə.daɪˈnæm.ɪk/',
+                syllableBreakdown: 'hy-dro-dy-nam-ic',
+                primaryStressSyllable: 4,
+                definition: 'Relating to forces or motion of liquids and fluids.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'investigating marine biology also discover hydrodynamic efficiencies in whale fins',
+                collocations: ['hydrodynamic drag', 'hydrodynamic efficiency', 'hydrodynamic performance'],
+                targetPhoneme: 'T_D'
+            },
+            {
+                id: 'vocab_nature_4',
+                word: 'exposition',
+                phoneticIpa: '/ˌɛk.spəˈzɪʃ.ən/',
+                syllableBreakdown: 'ex-po-si-tion',
+                primaryStressSyllable: 3,
+                definition: 'A comprehensive description and explanation of an idea or theory.',
+                partOfSpeech: 'noun',
+                exampleInPassage: 'Clear scientific exposition translates intricate biochemical pathways into actionable urban development',
+                collocations: ['clear exposition', 'scientific exposition', 'lucid exposition'],
+                targetPhoneme: 'S_SH'
+            },
+            {
+                id: 'vocab_nature_5',
+                word: 'regenerative',
+                phoneticIpa: '/rɪˈdʒɛn.ər.ə.tɪv/',
+                syllableBreakdown: 're-gen-er-a-tive',
+                primaryStressSyllable: 2,
+                definition: 'Tending or having the power to restore, renew, or revive.',
+                partOfSpeech: 'adjective',
+                exampleInPassage: 'stewardship requires communities to adopt regenerative practices that restore degraded waterways',
+                collocations: ['regenerative agriculture', 'regenerative practices', 'regenerative design'],
+                targetPhoneme: 'CH_J'
+            },
+            {
+                id: 'vocab_nature_6',
+                word: 'equilibria',
+                phoneticIpa: '/ˌiː.kwɪˈlɪb.ri.ə/',
+                syllableBreakdown: 'e-qui-lib-ri-a',
+                primaryStressSyllable: 3,
+                definition: 'States in which opposing forces or influences are balanced (plural of equilibrium).',
+                partOfSpeech: 'noun',
+                exampleInPassage: 'integrating ecological wisdom into modern construction projects preserves natural equilibria',
+                collocations: ['ecological equilibria', 'dynamic equilibria', 'maintain equilibria'],
+                targetPhoneme: 'R_L'
+            }
+        ]
     }
 ];
 //# sourceMappingURL=readingPassages.js.map

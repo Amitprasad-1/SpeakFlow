@@ -129,3 +129,31 @@ test('AssessmentEngine builds personalized starting profile and recommendations'
   assert.ok(profile.strengthsSummary.length >= 3);
   assert.ok(profile.focusAreasSummary.length >= 3);
 });
+
+test('AssessmentEngine sanitizes legacy demo names to Learner', () => {
+  const assessmentWithLegacyName = {
+    assessmentId: 'test_legacy',
+    userId: 'usr_legacy',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: 'completed',
+    currentStep: 10,
+    name: 'Alex Chen',
+    preferredLanguage: 'English',
+    selfReportedLevel: 'Intermediate',
+    goals: ['Speaking'],
+    contexts: ['workplace'],
+    dailyPracticePreference: 15,
+    speakingConfidence: 'okay'
+  };
+
+  const profile = AssessmentEngine.buildInitialLearnerProfile(assessmentWithLegacyName);
+  assert.equal(profile.name, 'Learner', 'Legacy "Alex Chen" must be sanitized to "Learner"');
+
+  const profileShortAlex = AssessmentEngine.buildInitialLearnerProfile({
+    ...assessmentWithLegacyName,
+    name: 'Alex'
+  });
+  assert.equal(profileShortAlex.name, 'Learner', 'Legacy "Alex" must be sanitized to "Learner"');
+});
+

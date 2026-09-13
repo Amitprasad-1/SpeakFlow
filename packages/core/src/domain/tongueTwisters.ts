@@ -161,5 +161,106 @@ export const TONGUE_TWISTERS_CATALOG: TongueTwister[] = [
     phoneticBreakdown: '/wɪtʃ ˈrɪst.wɒtʃ.ɪz ɑːr swɪs ˈrɪst.wɒtʃ.ɪz/',
     targetWpm: 155,
     tip: 'Keep jaw motions compact. Articulate from your lip corners and tongue tip rather than moving your whole head.'
+  },
+
+  // 12. R / L (Original additional twisters for daily multi-day rotation)
+  {
+    id: 'twister_r_l_3',
+    category: 'R_L',
+    text: 'Real royal lawyers rarely lead rebellious regional rallies.',
+    difficulty: 'medium',
+    focusSound: '/r/ vs /l/',
+    phoneticBreakdown: '/rɪəl ˈrɔɪ.əl ˈlɔɪ.ərz ˈrɛər.li liːd rɪˈbɛl.jəs ˈriː.dʒən.əl ˈræl.iz/',
+    targetWpm: 125,
+    tip: 'Maintain distinct tongue placement between "royal" (/r/ then /l/) and "lawyers" (/l/).'
+  },
+  {
+    id: 'twister_r_l_4',
+    category: 'R_L',
+    text: 'Rolling lorry wheels rely on reliable radial rubber.',
+    difficulty: 'medium',
+    focusSound: '/r/ vs /l/',
+    phoneticBreakdown: '/ˈroʊ.lɪŋ ˈlɒr.i wiːlz rɪˈlaɪ ɒn rɪˈlaɪ.ə.bəl ˈreɪ.di.əl ˈrʌb.ər/',
+    targetWpm: 120,
+    tip: 'Avoid gliding /r/ into /w/; keep tongue curled slightly back.'
+  },
+  {
+    id: 'twister_r_l_5',
+    category: 'R_L',
+    text: 'Lively rural revelers relish real lemon lollipops regularly.',
+    difficulty: 'hard',
+    focusSound: '/r/ vs /l/',
+    phoneticBreakdown: '/ˈlaɪv.li ˈrʊər.əl ˈrɛv.əl.ərz ˈrɛl.ɪʃ rɪəl ˈlɛm.ən ˈlɒl.i.pɒps ˈrɛɡ.jʊ.lər.li/',
+    targetWpm: 130,
+    tip: 'Keep the tongue tip agile when alternating between "lively rural" and "lemon lollipops".'
+  },
+
+  // 13. S / SH additional
+  {
+    id: 'twister_s_sh_3',
+    category: 'S_SH',
+    text: 'Six sleek swans swiftly swam southward through stormy seas.',
+    difficulty: 'medium',
+    focusSound: '/s/ vs /ʃ/',
+    phoneticBreakdown: '/sɪks sliːk swɒnz ˈswɪft.li swæm ˈsaʊθ.wəd θruː ˈstɔː.mi siːz/',
+    targetWpm: 130,
+    tip: 'Sharpen the /s/ sound with smiling lips; notice the transition to /θ/ on "southward".'
+  },
+  {
+    id: 'twister_s_sh_4',
+    category: 'S_SH',
+    text: 'Shy Sarah surely shows sophisticated short-term solutions.',
+    difficulty: 'hard',
+    focusSound: '/s/ vs /ʃ/',
+    phoneticBreakdown: '/ʃaɪ ˈsɛər.ə ˈʃʊər.li ʃoʊz səˈfɪs.tɪ.keɪ.tɪd ʃɔːt tɜːm səˈluː.ʃənz/',
+    targetWpm: 125,
+    tip: 'Alternate deliberately: "Shy" (/ʃ/), "Sarah" (/s/), "surely shows" (/ʃ/), "sophisticated" (/s/).'
+  },
+
+  // 14. TH additional
+  {
+    id: 'twister_th_3',
+    category: 'TH',
+    text: 'These thirty thrilling theoretical themes thrive throughout Thursday.',
+    difficulty: 'medium',
+    focusSound: 'Voiced /ð/ vs Voiceless /θ/',
+    phoneticBreakdown: '/ðiːz ˈθɜː.ti ˈθrɪl.ɪŋ θɪəˈrɛt.ɪ.kəl θiːmz θraɪv θruːˈaʊt ˈθɜːz.deɪ/',
+    targetWpm: 120,
+    tip: 'Only "These" has voiced /ð/; the remaining "th" words are all voiceless /θ/.'
+  },
+  {
+    id: 'twister_th_4',
+    category: 'TH',
+    text: 'Father, mother, and brother breathe the soothing southern air together.',
+    difficulty: 'medium',
+    focusSound: 'Voiced /ð/ mastery',
+    phoneticBreakdown: '/ˈfɑː.ðər ˈmʌð.ər ænd ˈbrʌð.ər briːð ðə ˈsuː.ðɪŋ ˈsʌð.ən ɛər təˈɡɛð.ər/',
+    targetWpm: 125,
+    tip: 'Vibrate vocal cords on every /ð/ sound; touch upper teeth with tongue lightly.'
+  },
+
+  // 15. V / W additional
+  {
+    id: 'twister_v_w_2',
+    category: 'V_W',
+    text: 'Willing visitors view wonderful wide valleys with vivid wonder.',
+    difficulty: 'medium',
+    focusSound: '/v/ vs /w/',
+    phoneticBreakdown: '/ˈwɪl.ɪŋ ˈvɪz.ɪ.tərz vjuː ˈwʌn.də.fəl waɪd ˈvæl.iz wɪð ˈvɪv.ɪd ˈwʌn.dər/',
+    targetWpm: 125,
+    tip: 'Circle lips for "willing" and "wonderful"; bite lip gently for "visitors" and "valleys".'
+  },
+
+  // 16. Consonant clusters additional
+  {
+    id: 'twister_clusters_2',
+    category: 'CONSONANT_CLUSTERS',
+    text: 'Splendid spring sparrows spread swift sparkling spray across split spruce.',
+    difficulty: 'hard',
+    focusSound: 'Consonant clusters /spl/, /spr/, /sprk/',
+    phoneticBreakdown: '/ˈsplɛn.dɪd sprɪŋ ˈspær.oʊz sprɛd swɪft ˈspɑː.klɪŋ spreɪ əˈkrɒs splɪt spruːs/',
+    targetWpm: 120,
+    tip: 'Do not add an extra vowel before /s/. Connect the consonants smoothly.'
   }
 ];
+

@@ -386,9 +386,11 @@ class AssessmentEngine {
         const dailyMinutes = typeof assessment.dailyPracticePreference === 'number'
             ? assessment.dailyPracticePreference
             : 15;
+        const rawName = assessment.name?.trim() || '';
+        const cleanName = (rawName === 'Alex Chen' || rawName === 'Alex' || rawName === '') ? 'Learner' : rawName;
         return {
             id: assessment.userId || `user_${Date.now()}`,
-            name: assessment.name.trim() || 'Learner',
+            name: cleanName,
             goals: assessment.goals,
             level: levelMapping,
             dailyGoalMinutes: dailyMinutes,
