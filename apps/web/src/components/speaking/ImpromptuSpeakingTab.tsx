@@ -495,20 +495,23 @@ export const ImpromptuSpeakingTab: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: 'var(--space-12)' }}>
+    <div className="speaking-container" style={{ width: '100%', maxWidth: '960px', margin: '0 auto', paddingBottom: 'var(--space-12)', minWidth: 0, boxSizing: 'border-box' }}>
       {/* Top Header Card */}
       <div
         style={{
           background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)',
           border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius-xl)',
-          padding: '24px',
+          padding: 'clamp(16px, 3.5vw, 24px)',
           marginBottom: '20px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '16px'
+          gap: '16px',
+          width: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box'
         }}
       >
         <div>
@@ -520,7 +523,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
               1 · 2 · 5 Min Drill
             </span>
           </div>
-          <h1 style={{ fontSize: 'clamp(1.4rem, 2.5vw, 1.9rem)', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
+          <h1 style={{ fontSize: 'clamp(1.25rem, 2.5vw, 1.9rem)', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
             Impromptu Speaking & AI Video Coach
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '6px 0 0 0' }}>
@@ -556,15 +559,19 @@ export const ImpromptuSpeakingTab: React.FC = () => {
           PHASE 1: SETUP
           ========================================================================= */}
       {phase === 'setup' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           {/* 1. Topic Selection Card */}
           <div
+            className="speaking-card"
             style={{
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-xl)',
-              padding: '24px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+              padding: 'clamp(14px, 3.5vw, 24px)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+              width: '100%',
+              minWidth: 0,
+              boxSizing: 'border-box'
             }}
           >
             {/* Header with Title & Action Controls */}
@@ -585,7 +592,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
               </div>
 
               {/* Action Buttons: AI Topic Generator & Randomizer */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="speaking-topic-actions">
                 <button
                   onClick={handleGenerateAiTopics}
                   disabled={isGeneratingAiTopics}
@@ -649,12 +656,16 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                 background: 'linear-gradient(180deg, var(--color-surface-sunken) 0%, rgba(37, 99, 235, 0.03) 100%)',
                 border: '1px solid var(--color-border-subtle)',
                 borderRadius: 'var(--radius-lg)',
-                padding: '20px 22px',
+                padding: 'clamp(14px, 3.5vw, 22px)',
                 marginBottom: '20px',
-                position: 'relative'
+                position: 'relative',
+                width: '100%',
+                minWidth: 0,
+                boxSizing: 'border-box',
+                overflow: 'hidden'
               }}
             >
-              <div style={{ fontSize: '1.28rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
+              <div style={{ fontSize: 'clamp(1.05rem, 3vw, 1.28rem)', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.4, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 "{selectedTopic.topic}"
               </div>
 
@@ -664,8 +675,8 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                   Brainstorming Angles:
                 </span>
                 {selectedTopic.guideQuestions.map((q, idx) => (
-                  <div key={idx} style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.4 }}>
-                    <span style={{ color: 'var(--color-primary)', fontWeight: 800 }}>•</span>
+                  <div key={idx} style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 800, flexShrink: 0 }}>•</span>
                     <span>{q}</span>
                   </div>
                 ))}
@@ -742,15 +753,18 @@ export const ImpromptuSpeakingTab: React.FC = () => {
               </div>
 
               {/* Keyword Search Input */}
-              <div style={{ position: 'relative', marginBottom: '12px' }}>
+              <div style={{ position: 'relative', marginBottom: '12px', width: '100%', minWidth: 0 }}>
                 <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                 <input
                   type="text"
-                  placeholder={`Search ${allSpeakingTopics.length}+ topics by keyword (e.g. interview, AI, leadership, conflict, habit)...`}
+                  placeholder={`Search ${allSpeakingTopics.length}+ topics (e.g. interview, AI, habit)...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
                     width: '100%',
+                    minWidth: 0,
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
                     padding: '8px 12px 8px 36px',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--color-border)',
@@ -781,14 +795,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
               </div>
 
               {/* Topic Grid List */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                  gap: '8px',
-                  marginBottom: '10px'
-                }}
-              >
+              <div className="topic-cards-grid">
                 {(isTopicListExpanded ? filteredTopics : filteredTopics.slice(0, 6)).map(item => {
                   const isSelected = selectedTopic.id === item.id;
 
@@ -810,14 +817,18 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        gap: '6px'
+                        gap: '6px',
+                        boxSizing: 'border-box',
+                        minWidth: 0
                       }}
                     >
                       <div style={{
                         fontSize: '0.8125rem',
                         fontWeight: 700,
                         color: isSelected ? 'var(--color-primary)' : 'var(--color-text-primary)',
-                        lineHeight: 1.35
+                        lineHeight: 1.35,
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word'
                       }}>
                         {item.topic}
                       </div>
@@ -874,14 +885,17 @@ export const ImpromptuSpeakingTab: React.FC = () => {
             </div>
 
             {/* Custom Topic write-in */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', minWidth: 0 }}>
               <input
                 type="text"
                 placeholder="Or type your own custom topic here (e.g. My First Job Interview Experience)..."
                 value={customTopicInput}
                 onChange={(e) => setCustomTopicInput(e.target.value)}
                 style={{
-                  flex: 1,
+                  width: '100%',
+                  minWidth: 0,
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
                   padding: '10px 14px',
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--color-border)',
@@ -894,13 +908,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
           </div>
 
           {/* 2. Parameters Card: Duration, Prep Time & Recording Mode */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-              gap: '16px'
-            }}
-          >
+          <div className="prep-parameters-grid">
             {/* Speaking Duration */}
             <div
               style={{

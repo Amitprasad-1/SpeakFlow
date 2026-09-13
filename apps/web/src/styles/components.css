@@ -143,11 +143,16 @@
   max-width: 1080px;
   width: 100%;
   margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 @media (max-width: 640px) {
   .main-content {
-    padding: var(--space-4);
+    padding: 12px 10px;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 }
 
@@ -310,6 +315,119 @@
     justify-content: space-between !important;
     padding-top: 4px;
     border-top: 1px solid var(--color-border-subtle);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Coach Navigation Switcher & Mobile Responsive Layouts
+   -------------------------------------------------------------------------- */
+.coach-nav-switcher {
+  display: flex;
+  background: var(--color-surface-sunken);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  gap: 4px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 12px auto;
+  box-sizing: border-box;
+}
+
+.coach-nav-label-desktop {
+  display: inline;
+}
+
+.coach-nav-label-mobile {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .coach-nav-switcher {
+    border-radius: var(--radius-xl);
+    padding: 3px;
+    gap: 2px;
+  }
+  .coach-nav-btn {
+    padding: 8px 4px !important;
+    font-size: 0.75rem !important;
+    border-radius: var(--radius-md) !important;
+  }
+  .coach-nav-label-desktop {
+    display: none;
+  }
+  .coach-nav-label-mobile {
+    display: inline;
+  }
+}
+
+/* Impromptu Speaking Responsive Components */
+.speaking-container {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding-bottom: var(--space-12);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.speaking-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.speaking-topic-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.topic-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.prep-parameters-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .topic-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+  .prep-parameters-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .speaking-card {
+    padding: 14px;
+    border-radius: var(--radius-lg);
+  }
+  .speaking-topic-actions {
+    width: 100%;
+  }
+  .speaking-topic-actions button {
+    flex: 1;
+    justify-content: center;
+    font-size: 0.75rem !important;
+    padding: 8px 10px !important;
   }
 }
 

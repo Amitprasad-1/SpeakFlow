@@ -145,20 +145,23 @@ export const EssayWritingTab: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: 'var(--space-12)' }}>
+    <div className="speaking-container" style={{ width: '100%', maxWidth: '960px', margin: '0 auto', paddingBottom: 'var(--space-12)', minWidth: 0, boxSizing: 'border-box' }}>
       {/* Top Banner Header */}
       <div
         style={{
           background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(37, 99, 235, 0.08) 100%)',
           border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius-xl)',
-          padding: '24px',
+          padding: 'clamp(16px, 3.5vw, 24px)',
           marginBottom: '20px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '16px'
+          gap: '16px',
+          width: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box'
         }}
       >
         <div>
@@ -170,7 +173,7 @@ export const EssayWritingTab: React.FC = () => {
               Target: 150 – 200 Words
             </span>
           </div>
-          <h1 style={{ fontSize: 'clamp(1.4rem, 2.5vw, 1.9rem)', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
+          <h1 style={{ fontSize: 'clamp(1.25rem, 2.5vw, 1.9rem)', fontWeight: 800, margin: 0, color: 'var(--color-text-primary)' }}>
             Essay & Paragraph Writing Diagnostic
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '6px 0 0 0' }}>
@@ -206,15 +209,19 @@ export const EssayWritingTab: React.FC = () => {
           VIEW 1: WRITING CANVAS (When not viewing report)
           ========================================================================= */}
       {!report && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           {/* Topic Selector Card */}
           <div
+            className="speaking-card"
             style={{
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-xl)',
-              padding: '24px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+              padding: 'clamp(14px, 3.5vw, 24px)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+              width: '100%',
+              minWidth: 0,
+              boxSizing: 'border-box'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
@@ -234,7 +241,7 @@ export const EssayWritingTab: React.FC = () => {
               </div>
 
               {/* Action Controls: AI Topic Generator & Randomizer */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="speaking-topic-actions">
                 <button
                   onClick={handleGenerateAiTopics}
                   disabled={isGeneratingAiTopics}
@@ -430,14 +437,7 @@ export const EssayWritingTab: React.FC = () => {
               </div>
 
               {/* Topic Grid List */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                  gap: '8px',
-                  marginBottom: '10px'
-                }}
-              >
+              <div className="topic-cards-grid">
                 {(isTopicListExpanded ? filteredTopics : filteredTopics.slice(0, 6)).map(item => {
                   const isSelected = selectedTopic.id === item.id;
 
@@ -545,15 +545,19 @@ export const EssayWritingTab: React.FC = () => {
 
           {/* Active Writing Canvas Card */}
           <div
+            className="speaking-card"
             style={{
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-xl)',
-              padding: '24px',
+              padding: 'clamp(14px, 3.5vw, 24px)',
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+              boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+              width: '100%',
+              minWidth: 0,
+              boxSizing: 'border-box'
             }}
           >
             {/* Toolbar: Word Gauge & Starter Helper */}

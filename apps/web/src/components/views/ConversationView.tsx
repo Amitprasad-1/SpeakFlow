@@ -200,25 +200,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: '960px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxWidth: '960px', margin: '0 auto', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
       {/* 3-Way Mode Switcher: Impromptu Speaking | Essay Writing | Interactive Chat */}
-      <div
-        className="coach-nav-switcher"
-        style={{
-          display: 'flex',
-          background: 'var(--color-surface-sunken)',
-          padding: '4px',
-          borderRadius: 'var(--radius-pill)',
-          border: '1px solid var(--color-border)',
-          gap: '4px',
-          width: '100%',
-          maxWidth: '720px',
-          margin: '0 auto 8px auto'
-        }}
-      >
+      <div className="coach-nav-switcher">
         <button
           onClick={() => setSubTab('speaking')}
-          className={`coach-nav-btn ${subTab === 'speaking' ? 'active' : ''}`}
+          className={`coach-nav-btn tap-interactive ${subTab === 'speaking' ? 'active' : ''}`}
           style={{
             flex: 1,
             display: 'inline-flex',
@@ -238,12 +225,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           }}
         >
           <Mic size={15} />
-          <span>Speaking (1-5m)</span>
+          <span className="coach-nav-label-desktop">Speaking (1-5m)</span>
+          <span className="coach-nav-label-mobile">Speaking</span>
         </button>
 
         <button
           onClick={() => setSubTab('writing')}
-          className={`coach-nav-btn ${subTab === 'writing' ? 'active' : ''}`}
+          className={`coach-nav-btn tap-interactive ${subTab === 'writing' ? 'active' : ''}`}
           style={{
             flex: 1,
             display: 'inline-flex',
@@ -263,12 +251,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           }}
         >
           <PenTool size={15} />
-          <span>Writing (150-200w)</span>
+          <span className="coach-nav-label-desktop">Writing (150-200w)</span>
+          <span className="coach-nav-label-mobile">Writing</span>
         </button>
 
         <button
           onClick={() => setSubTab('chat')}
-          className={`coach-nav-btn ${subTab === 'chat' ? 'active' : ''}`}
+          className={`coach-nav-btn tap-interactive ${subTab === 'chat' ? 'active' : ''}`}
           style={{
             flex: 1,
             display: 'inline-flex',
@@ -289,7 +278,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           }}
         >
           <MessageSquare size={15} />
-          <span>Chat Coach</span>
+          <span className="coach-nav-label-desktop">Chat Coach</span>
+          <span className="coach-nav-label-mobile">Chat</span>
         </button>
       </div>
 
