@@ -753,6 +753,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         onClose={() => setIsVideoRecorderOpen(false)}
         passageTitle={passage.title}
         totalWords={passage.wordCount}
+        sentences={sentences}
         currentSentenceIndex={activeSentenceIndex}
         totalSentences={sentences.length}
         isAutoReading={isAutomatedRunning}
