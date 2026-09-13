@@ -18,8 +18,10 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Video
 } from 'lucide-react';
+import { ReadingVideoRecorder } from './ReadingVideoRecorder';
 
 export interface DailyReadingTabProps {
   currentDateString?: string;
@@ -57,6 +59,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
   const [textSize, setTextSize] = useState<'normal' | 'large'>('normal');
   const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isVideoRecorderOpen, setIsVideoRecorderOpen] = useState<boolean>(false);
   const [readingSeconds, setReadingSeconds] = useState<number>(0);
   const [hasCompleted, setHasCompleted] = useState<boolean>(false);
   const [estimatedWpm, setEstimatedWpm] = useState<number | null>(null);
@@ -531,6 +534,30 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             {isRecording ? <MicOff size={14} /> : <Mic size={14} />}
             <span>{isRecording ? `${readingSeconds}s` : 'Practice Mic'}</span>
           </button>
+
+          {/* Record Video with Camera & Voice */}
+          <button
+            onClick={() => setIsVideoRecorderOpen(prev => !prev)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-pill)',
+              border: isVideoRecorderOpen ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+              background: isVideoRecorderOpen ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
+              color: isVideoRecorderOpen ? 'var(--color-primary)' : 'var(--color-text-primary)',
+              fontWeight: 700,
+              fontSize: '0.75rem',
+              cursor: 'pointer',
+              boxShadow: isVideoRecorderOpen ? '0 0 12px rgba(14, 165, 233, 0.25)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+            title="Record video & voice practice with webcam"
+          >
+            <Video size={14} color={isVideoRecorderOpen ? 'var(--color-primary)' : 'currentColor'} />
+            <span>{isVideoRecorderOpen ? 'Camera Live' : 'Record Video'}</span>
+          </button>
         </div>
       </div>
 
@@ -719,6 +746,17 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           </div>
         </section>
       )}
+
+      {/* Video & Voice Recording Mirror / Review Modal */}
+      <ReadingVideoRecorder
+        isOpen={isVideoRecorderOpen}
+        onClose={() => setIsVideoRecorderOpen(false)}
+        passageTitle={passage.title}
+        totalWords={passage.wordCount}
+        currentSentenceIndex={activeSentenceIndex}
+        totalSentences={sentences.length}
+        isAutoReading={isAutomatedRunning}
+      />
     </div>
   );
 };
