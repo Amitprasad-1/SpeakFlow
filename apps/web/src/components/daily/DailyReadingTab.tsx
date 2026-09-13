@@ -76,6 +76,10 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   const pacerElapsedRef = useRef<number>(0);
   const isAutomatedRunningRef = useRef<boolean>(false);
   isAutomatedRunningRef.current = isAutomatedRunning;
+  const voiceEnabledRef = useRef<boolean>(voiceEnabled);
+  voiceEnabledRef.current = voiceEnabled;
+  const activeSentenceIndexRef = useRef<number>(activeSentenceIndex);
+  activeSentenceIndexRef.current = activeSentenceIndex;
 
   // Reset when day or passage changes
   useEffect(() => {
@@ -108,11 +112,51 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     return 1.3;
   };
 
+  // Speak sentence aloud with Web Speech API
+  const speakSentenceAloud = (index: number) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+
+    const sentence = sentences[index];
+    if (!sentence) return;
+
+    const utterance = new SpeechSynthesisUtterance(sentence);
+    utterance.rate = getSpeechRate(pacerSpeed);
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => {
+      // When sentence finishes speaking, advance if auto reading is active and voice is still ON
+      if (isAutomatedRunningRef.current && voiceEnabledRef.current) {
+        if (index + 1 < sentences.length) {
+          playAutomatedSentence(index + 1);
+        } else {
+          setIsAutomatedRunning(false);
+          isAutomatedRunningRef.current = false;
+          setHasCompleted(true);
+          setEstimatedWpm(pacerSpeed);
+        }
+      }
+    };
+
+    utterance.onerror = (e) => {
+      console.warn('Speech synthesis utterance error:', e);
+      if (isAutomatedRunningRef.current && voiceEnabledRef.current) {
+        if (index + 1 < sentences.length) {
+          playAutomatedSentence(index + 1);
+        }
+      }
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
   // Core automated sentence playback
   const playAutomatedSentence = (index: number) => {
     if (index >= sentences.length) {
       // Completed full passage!
       setIsAutomatedRunning(false);
+      isAutomatedRunningRef.current = false;
       setHasCompleted(true);
       setEstimatedWpm(pacerSpeed);
       window.speechSynthesis?.cancel();
@@ -120,6 +164,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
 
     setActiveSentenceIndex(index);
+    activeSentenceIndexRef.current = index;
     scrollToSentence(index);
     setSentenceProgress(0);
 
@@ -128,34 +173,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     // Expected reading duration based on selected WPM
     const durationMs = Math.max(2200, (wordCount / pacerSpeed) * 60 * 1000);
 
-    // 1. If voice audio is enabled, speak the sentence aloud with Web Speech API
-    if (voiceEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(currentSentence);
-      utterance.rate = getSpeechRate(pacerSpeed);
-      utterance.pitch = 1.0;
-
-      utterance.onend = () => {
-        // As soon as sentence audio finishes, automatically advance to next sentence!
-        if (isAutomatedRunningRef.current) {
-          if (index + 1 < sentences.length) {
-            playAutomatedSentence(index + 1);
-          } else {
-            setIsAutomatedRunning(false);
-            setHasCompleted(true);
-            setEstimatedWpm(pacerSpeed);
-          }
-        }
-      };
-
-      utterance.onerror = () => {
-        // Fallback: if audio fails, fallback to timer advance
-        if (isAutomatedRunningRef.current && index + 1 < sentences.length) {
-          playAutomatedSentence(index + 1);
-        }
-      };
-
-      window.speechSynthesis.speak(utterance);
+    // 1. If voice audio is enabled, speak the sentence aloud
+    if (voiceEnabledRef.current) {
+      speakSentenceAloud(index);
     }
 
     // 2. Animate countdown progress line across the sentence
@@ -169,13 +189,14 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       setSentenceProgress(pct);
 
       // If voice is muted, timer advances to the next sentence automatically
-      if (!voiceEnabled && pct >= 100) {
+      if (!voiceEnabledRef.current && pct >= 100) {
         clearInterval(pacerTimerRef.current);
         if (isAutomatedRunningRef.current) {
           if (index + 1 < sentences.length) {
             playAutomatedSentence(index + 1);
           } else {
             setIsAutomatedRunning(false);
+            isAutomatedRunningRef.current = false;
             setHasCompleted(true);
             setEstimatedWpm(pacerSpeed);
           }
@@ -184,11 +205,33 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }, intervalMs);
   };
 
+  // Handle Voice Toggle Button click (instant reactive connection)
+  const handleToggleVoice = () => {
+    const nextVoice = !voiceEnabled;
+    setVoiceEnabled(nextVoice);
+    voiceEnabledRef.current = nextVoice;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('speakflow_reading_voice_enabled', String(nextVoice));
+    }
+
+    if (nextVoice) {
+      // User turned Voice ON! If auto-reading is running or ready, speak current sentence immediately
+      speakSentenceAloud(activeSentenceIndexRef.current);
+    } else {
+      // User turned Voice OFF! Immediately silence speech synthesis
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+  };
+
   // Toggle automated reading
   const toggleAutomatedReading = () => {
     if (isAutomatedRunning) {
       // Pause
       setIsAutomatedRunning(false);
+      isAutomatedRunningRef.current = false;
       window.speechSynthesis?.cancel();
       if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
       return;
@@ -196,6 +239,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
     // Start
     setIsAutomatedRunning(true);
+    isAutomatedRunningRef.current = true;
     setHasCompleted(false);
 
     const startIndex = activeSentenceIndex >= sentences.length - 1 ? 0 : activeSentenceIndex;
@@ -420,17 +464,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             <span>{isAutomatedRunning ? 'Pause Reading' : 'Start Auto Reading'}</span>
           </button>
 
-          {/* Voice Audio Toggle (Turned OFF by default) */}
+          {/* Voice Audio Toggle */}
           <button
-            onClick={() => {
-              setVoiceEnabled(prev => {
-                const next = !prev;
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem('speakflow_reading_voice_enabled', String(next));
-                }
-                return next;
-              });
-            }}
+            onClick={handleToggleVoice}
             title={voiceEnabled ? 'Voice audio ON (Click to turn OFF)' : 'Voice audio OFF (Click to turn ON)'}
             style={{
               display: 'inline-flex',
