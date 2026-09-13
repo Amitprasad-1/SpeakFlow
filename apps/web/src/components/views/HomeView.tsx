@@ -24,6 +24,7 @@ import {
 import { BrowserStorage } from '../../storage/BrowserStorage';
 import { DailyPracticeSession } from '@speakflow/core';
 import { Clock, Award, Target, Sparkles, ArrowRight, CheckCircle2, MessageSquare } from 'lucide-react';
+import { QuickSpeechLab } from '../home/QuickSpeechLab';
 
 export interface HomeViewProps {
   user?: UserProfileData;
@@ -225,6 +226,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </button>
         </Card>
       )}
+
+      {/* 60-Second Interactive Speech Lab */}
+      <QuickSpeechLab />
 
       {/* 3. Priority 3: Today's Progress & Consistency */}
       <section>

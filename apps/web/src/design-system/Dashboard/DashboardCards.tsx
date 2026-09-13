@@ -195,6 +195,8 @@ export const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
           size="lg"
           onClick={onStart}
           icon={<Play size={18} fill="currentColor" />}
+          className="cta-breathing"
+          style={{ cursor: 'pointer' }}
         >
           {buttonLabel}
         </Button>

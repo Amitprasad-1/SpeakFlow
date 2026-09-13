@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Info
 } from 'lucide-react';
+import { VoiceWaveVisualizer } from '../common/VoiceWaveVisualizer';
 
 export interface ConversationViewProps {
   onReturnToHome?: () => void;
@@ -272,6 +273,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               onToggle={handleToggleVoice}
               durationSeconds={recordedDuration}
             />
+            {voiceState === 'listening' && (
+              <VoiceWaveVisualizer isActive={true} size="md" color="var(--color-error)" />
+            )}
+            {isSpeakingAi && (
+              <VoiceWaveVisualizer isActive={true} size="md" color="var(--color-primary)" />
+            )}
           </div>
 
           <button
