@@ -159,39 +159,41 @@ export const App: React.FC = () => {
       currentDate={currentDate}
       onDateChange={setCurrentDate}
     >
-      {currentRoute === 'reading' && <DailyReadingTab currentDateString={currentDate} />}
-      {currentRoute === 'twisters' && <DailyTwistersTab currentDateString={currentDate} />}
-      {currentRoute === 'grammar' && <DailyGrammarLabTab currentDateString={currentDate} />}
-      {currentRoute === 'phrases' && <DailyPhrasesTab currentDateString={currentDate} />}
-      {currentRoute === 'conversation' && (
-        <ConversationView onReturnToHome={() => navigateTo('reading')} />
-      )}
-      {currentRoute === 'profile' && (
-        <ProfileView
-          user={user}
-          themeMode={themeMode}
-          onThemeModeChange={setThemeMode}
-          onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
-        />
-      )}
-      {currentRoute === 'home' && (
-        <HomeView
-          user={user}
-          onNavigateToPractice={() => navigateTo('practice')}
-          onNavigateToConversation={() => navigateTo('conversation')}
-          onNavigateToPhrases={() => navigateTo('phrases')}
-          onStartBaseline={() => navigateTo('onboarding')}
-          baselineStatus={baselineStatus}
-        />
-      )}
-      {currentRoute === 'practice' && (
-        <PracticeView
-          onReturnToHome={() => navigateTo('reading')}
-          onSessionComplete={() => {}}
-        />
-      )}
-      {currentRoute === 'progress' && <ProgressView />}
-      {currentRoute === 'design-system' && <DesignSystemView />}
+      <div key={currentRoute} className="animate-fade-in-up" style={{ width: '100%' }}>
+        {currentRoute === 'reading' && <DailyReadingTab currentDateString={currentDate} />}
+        {currentRoute === 'twisters' && <DailyTwistersTab currentDateString={currentDate} />}
+        {currentRoute === 'grammar' && <DailyGrammarLabTab currentDateString={currentDate} />}
+        {currentRoute === 'phrases' && <DailyPhrasesTab currentDateString={currentDate} />}
+        {currentRoute === 'conversation' && (
+          <ConversationView onReturnToHome={() => navigateTo('reading')} />
+        )}
+        {currentRoute === 'profile' && (
+          <ProfileView
+            user={user}
+            themeMode={themeMode}
+            onThemeModeChange={setThemeMode}
+            onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+          />
+        )}
+        {currentRoute === 'home' && (
+          <HomeView
+            user={user}
+            onNavigateToPractice={() => navigateTo('practice')}
+            onNavigateToConversation={() => navigateTo('conversation')}
+            onNavigateToPhrases={() => navigateTo('phrases')}
+            onStartBaseline={() => navigateTo('onboarding')}
+            baselineStatus={baselineStatus}
+          />
+        )}
+        {currentRoute === 'practice' && (
+          <PracticeView
+            onReturnToHome={() => navigateTo('reading')}
+            onSessionComplete={() => {}}
+          />
+        )}
+        {currentRoute === 'progress' && <ProgressView />}
+        {currentRoute === 'design-system' && <DesignSystemView />}
+      </div>
     </AppShell>
   );
 };

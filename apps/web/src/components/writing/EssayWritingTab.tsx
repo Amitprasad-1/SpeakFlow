@@ -484,7 +484,7 @@ export const EssayWritingTab: React.FC = () => {
               <button
                 onClick={handleAnalyzeEssay}
                 disabled={isAnalyzing || wordCount < 15}
-                className="cta-breathing tap-interactive"
+                className="cta-breathing tap-interactive btn-shimmer"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',

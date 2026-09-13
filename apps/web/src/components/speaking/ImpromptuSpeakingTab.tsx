@@ -736,7 +736,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
             <button
               onClick={handleStartPrep}
-              className="cta-breathing tap-interactive"
+              className="cta-breathing tap-interactive btn-shimmer"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

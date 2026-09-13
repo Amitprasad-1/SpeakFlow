@@ -580,14 +580,14 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
                 key={phrase.id}
                 variant="default"
                 padding="md"
+                className="card-hover-lift"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: 'var(--radius-lg)',
                   border: isPlaying ? '1px solid var(--color-primary)' : isRecording ? '1px solid var(--color-error)' : '1px solid var(--color-border)',
                   background: isPlaying ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
-                  transition: 'all var(--motion-duration-fast) ease',
                   position: 'relative'
                 }}
               >

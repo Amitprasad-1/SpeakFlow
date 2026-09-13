@@ -121,12 +121,14 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
               key={twister.id}
               variant="default"
               padding="lg"
+              className="card-hover-lift"
               style={{
                 border: isDone ? '1px solid var(--color-success)' : '1px solid var(--color-border)',
-                background: isDone ? 'linear-gradient(135deg, var(--color-surface) 0%, rgba(16, 185, 129, 0.03) 100%)' : 'var(--color-surface)',
+                background: isDone ? 'linear-gradient(135deg, var(--color-surface) 0%, rgba(16, 185, 129, 0.05) 100%)' : 'var(--color-surface)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 'var(--space-3)'
+                gap: 'var(--space-3)',
+                borderRadius: 'var(--radius-xl)'
               }}
             >
               {/* Badge & Target Sound */}

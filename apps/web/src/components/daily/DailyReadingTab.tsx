@@ -440,6 +440,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         <div className="reading-player-row reading-player-row-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={toggleAutomatedReading}
+            className="btn-shimmer"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
