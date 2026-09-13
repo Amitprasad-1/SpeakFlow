@@ -23,7 +23,7 @@ import {
 } from '../../data/demoData';
 import { BrowserStorage } from '../../storage/BrowserStorage';
 import { DailyPracticeSession } from '@speakflow/core';
-import { Clock, Award, Target, Sparkles, ArrowRight, CheckCircle2, MessageSquare } from 'lucide-react';
+import { Clock, Award, Target, Sparkles, ArrowRight, CheckCircle2, MessageSquare, Languages } from 'lucide-react';
 import { QuickSpeechLab } from '../home/QuickSpeechLab';
 
 export interface HomeViewProps {
@@ -34,6 +34,7 @@ export interface HomeViewProps {
   wordOfTheDay?: VocabularyItem;
   onNavigateToPractice: () => void;
   onNavigateToConversation?: () => void;
+  onNavigateToPhrases?: () => void;
   onStartBaseline?: () => void;
   baselineStatus?: 'completed' | 'in_progress' | 'skipped' | 'not_started';
 }
@@ -46,6 +47,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   wordOfTheDay = demoWordOfTheDay,
   onNavigateToPractice,
   onNavigateToConversation,
+  onNavigateToPhrases,
   onStartBaseline,
   baselineStatus
 }) => {
@@ -222,6 +224,69 @@ export const HomeView: React.FC<HomeViewProps> = ({
             id="btn-home-ai-coach"
           >
             <span>Start Conversation</span>
+            <ArrowRight size={16} />
+          </button>
+        </Card>
+      )}
+
+      {/* Everyday Hindi-to-English Spoken Expressions Card */}
+      {onNavigateToPhrases && (
+        <Card
+          variant="default"
+          padding="md"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.07) 0%, rgba(239, 68, 68, 0.05) 100%)',
+            border: '1px solid rgba(245, 158, 11, 0.25)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(245, 158, 11, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#f59e0b'
+              }}
+            >
+              <Languages size={22} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <span style={{ fontWeight: 700, fontSize: 'var(--text-body)', color: 'var(--color-text-primary)' }}>
+                  Everyday Spoken Phrases (हिंदी ➔ English)
+                </span>
+                <Badge variant="warning" size="sm">88+ Phrases</Badge>
+              </div>
+              <p className="typography-caption" style={{ color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                Master instant spoken English for real-life Hindi expressions ("मुझ पर हुक्म मत चलाओ", "बात खत्म", "दूर रहो").
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToPhrases}
+            className="speakflow-btn btn-variant-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              padding: 'var(--space-2) var(--space-4)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--text-body-sm)',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            id="btn-home-phrases"
+          >
+            <span>Practice Phrases</span>
             <ArrowRight size={16} />
           </button>
         </Card>

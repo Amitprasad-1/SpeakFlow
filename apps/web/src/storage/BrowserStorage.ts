@@ -21,7 +21,9 @@ const STORAGE_KEYS = {
   CONTENT_HISTORY: 'speakflow_content_history_v1',
   DAILY_SESSION_PREFIX: 'speakflow_daily_session_',
   LEARNING_MEMORY: 'speakflow_learning_memory_v1',
-  CONVERSATIONS_HISTORY: 'speakflow_conversations_v1'
+  CONVERSATIONS_HISTORY: 'speakflow_conversations_v1',
+  CUSTOM_PHRASES: 'speakflow_custom_phrases_v1',
+  FAVORITE_PHRASES: 'speakflow_fav_phrases_v1'
 };
 
 export interface AppSettings {
@@ -286,5 +288,68 @@ export class BrowserStorage {
     localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_LESSON);
     localStorage.removeItem(STORAGE_KEYS.SESSION_HISTORY);
+  }
+
+  public static getCustomPhrases(): any[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.CUSTOM_PHRASES);
+      if (!data) return [];
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  public static saveCustomPhrases(phrases: any[]): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_PHRASES, JSON.stringify(phrases));
+    } catch (e) {
+      console.warn('Failed to save custom phrases:', e);
+    }
+  }
+
+  public static addCustomPhrase(phrase: { hindi: string; english: string; category: string; notes?: string }): any {
+    const customList = this.getCustomPhrases();
+    const newPhrase = {
+      ...phrase,
+      id: `custom_${Date.now()}`,
+      isCustom: true
+    };
+    customList.unshift(newPhrase);
+    this.saveCustomPhrases(customList);
+    return newPhrase;
+  }
+
+  public static deleteCustomPhrase(id: string): void {
+    const customList = this.getCustomPhrases().filter((p) => p.id !== id);
+    this.saveCustomPhrases(customList);
+  }
+
+  public static getFavoritePhraseIds(): string[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.FAVORITE_PHRASES);
+      if (!data) return [];
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  public static toggleFavoritePhrase(id: string): boolean {
+    try {
+      const favs = new Set<string>(this.getFavoritePhraseIds());
+      let isNowFav = false;
+      if (favs.has(id)) {
+        favs.delete(id);
+        isNowFav = false;
+      } else {
+        favs.add(id);
+        isNowFav = true;
+      }
+      localStorage.setItem(STORAGE_KEYS.FAVORITE_PHRASES, JSON.stringify(Array.from(favs)));
+      return isNowFav;
+    } catch {
+      return false;
+    }
   }
 }

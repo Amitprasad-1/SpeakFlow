@@ -4,6 +4,7 @@ import { ThemeMode } from './components/common/ThemeToggle';
 import { DailyReadingTab } from './components/daily/DailyReadingTab';
 import { DailyTwistersTab } from './components/daily/DailyTwistersTab';
 import { DailyGrammarLabTab } from './components/daily/DailyGrammarLabTab';
+import { DailyPhrasesTab } from './components/daily/DailyPhrasesTab';
 import { ConversationView } from './components/views/ConversationView';
 import { ProgressView } from './components/views/ProgressView';
 import { ProfileView } from './components/views/ProfileView';
@@ -161,6 +162,7 @@ export const App: React.FC = () => {
       {currentRoute === 'reading' && <DailyReadingTab currentDateString={currentDate} />}
       {currentRoute === 'twisters' && <DailyTwistersTab currentDateString={currentDate} />}
       {currentRoute === 'grammar' && <DailyGrammarLabTab currentDateString={currentDate} />}
+      {currentRoute === 'phrases' && <DailyPhrasesTab />}
       {currentRoute === 'conversation' && (
         <ConversationView onReturnToHome={() => navigateTo('reading')} />
       )}
@@ -177,6 +179,7 @@ export const App: React.FC = () => {
           user={user}
           onNavigateToPractice={() => navigateTo('practice')}
           onNavigateToConversation={() => navigateTo('conversation')}
+          onNavigateToPhrases={() => navigateTo('phrases')}
           onStartBaseline={() => navigateTo('onboarding')}
           baselineStatus={baselineStatus}
         />

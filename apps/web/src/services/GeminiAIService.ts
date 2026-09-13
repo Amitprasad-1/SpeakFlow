@@ -205,4 +205,33 @@ RULES:
     }
     return "That's a great perspective! How do you usually approach that in your day-to-day routine?";
   }
+
+  /**
+   * Translates an everyday Hindi conversational phrase into natural spoken English.
+   */
+  public static async translateHindiToEnglish(hindiText: string): Promise<string> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) return '';
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const prompt = `Translate this everyday Hindi conversational phrase into a natural, concise, real-world English spoken sentence. Return ONLY the English translation, no explanations, no quotes.\n\nHindi: "${hindiText}"`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 60 }
+        })
+      });
+
+      if (!res.ok) return '';
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      return text ? text.trim().replace(/^["']|["']$/g, '') : '';
+    } catch {
+      return '';
+    }
+  }
 }

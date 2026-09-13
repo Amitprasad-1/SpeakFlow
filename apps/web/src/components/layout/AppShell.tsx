@@ -12,10 +12,11 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  RotateCcw
+  RotateCcw,
+  Languages
 } from 'lucide-react';
 
-export type AppNavTab = 'reading' | 'twisters' | 'grammar' | 'conversation' | 'profile' | 'progress' | 'home' | 'practice' | 'design-system';
+export type AppNavTab = 'reading' | 'twisters' | 'grammar' | 'phrases' | 'conversation' | 'profile' | 'progress' | 'home' | 'practice' | 'design-system';
 
 export interface AppShellProps {
   activeTab: AppNavTab;
@@ -71,6 +72,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     { id: 'reading', label: '200-Word Reading', icon: BookOpen },
     { id: 'twisters', label: 'Tongue Twisters', icon: Zap },
     { id: 'grammar', label: 'Words & Grammar', icon: Sparkles },
+    { id: 'phrases', label: 'Daily Phrases (हिंदी)', icon: Languages },
     { id: 'conversation', label: 'AI Coach', icon: MessageSquare },
     { id: 'profile', label: 'Profile & Settings', icon: User }
   ];
