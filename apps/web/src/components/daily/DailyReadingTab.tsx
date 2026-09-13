@@ -6,9 +6,9 @@ import {
 } from '@speakflow/core';
 import {
   Volume2,
+  VolumeX,
   Play,
   Pause,
-  Square,
   Mic,
   MicOff,
   BookOpen,
@@ -48,13 +48,12 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     return matches.map(s => s.trim()).filter(Boolean);
   }, [passage?.passageText]);
 
-  // State
+  // Automated reading state
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number>(0);
-  const [isPacerRunning, setIsPacerRunning] = useState<boolean>(false);
+  const [isAutomatedRunning, setIsAutomatedRunning] = useState<boolean>(false);
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
   const [pacerSpeed, setPacerSpeed] = useState<120 | 150 | 180 | 210>(150);
   const [sentenceProgress, setSentenceProgress] = useState<number>(0);
-  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
-  const [playingSentenceIndex, setPlayingSentenceIndex] = useState<number | null>(null);
 
   const [textSize, setTextSize] = useState<'normal' | 'large'>('normal');
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -62,11 +61,13 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   const [hasCompleted, setHasCompleted] = useState<boolean>(false);
   const [estimatedWpm, setEstimatedWpm] = useState<number | null>(null);
 
-  // Refs
+  // Refs for timers and smooth scrolling
   const pacerTimerRef = useRef<any>(null);
   const recordTimerRef = useRef<any>(null);
-  const sentenceRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const sentenceRefs = useRef<(HTMLDivElement | null)[]>([]);
   const pacerElapsedRef = useRef<number>(0);
+  const isAutomatedRunningRef = useRef<boolean>(false);
+  isAutomatedRunningRef.current = isAutomatedRunning;
 
   // Reset when day or passage changes
   useEffect(() => {
@@ -91,142 +92,141 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
   };
 
-  // Speed Pacer Countdown: automatically pushes user to read quickly sentence by sentence
-  useEffect(() => {
-    if (!isPacerRunning || sentences.length === 0) {
-      if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
-      setSentenceProgress(0);
+  // Convert WPM speed to SpeechSynthesis rate
+  const getSpeechRate = (wpm: number): number => {
+    if (wpm <= 120) return 0.85;
+    if (wpm <= 150) return 1.0;
+    if (wpm <= 180) return 1.15;
+    return 1.3;
+  };
+
+  // Core automated sentence playback
+  const playAutomatedSentence = (index: number) => {
+    if (index >= sentences.length) {
+      // Completed full passage!
+      setIsAutomatedRunning(false);
+      setHasCompleted(true);
+      setEstimatedWpm(pacerSpeed);
+      window.speechSynthesis?.cancel();
       return;
     }
 
-    const currentSentence = sentences[activeSentenceIndex] || '';
-    const wordCount = currentSentence.split(/\s+/).filter(Boolean).length;
-    // Calculate expected reading duration for this specific sentence based on WPM
-    // e.g. 15 words at 150 WPM = 6.0 seconds. Minimum 2.4s.
-    const targetDurationMs = Math.max(2400, (wordCount / pacerSpeed) * 60 * 1000);
+    setActiveSentenceIndex(index);
+    scrollToSentence(index);
+    setSentenceProgress(0);
 
+    const currentSentence = sentences[index] || '';
+    const wordCount = currentSentence.split(/\s+/).filter(Boolean).length;
+    // Expected reading duration based on selected WPM
+    const durationMs = Math.max(2200, (wordCount / pacerSpeed) * 60 * 1000);
+
+    // 1. If voice audio is enabled, speak the sentence aloud with Web Speech API
+    if (voiceEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(currentSentence);
+      utterance.rate = getSpeechRate(pacerSpeed);
+      utterance.pitch = 1.0;
+
+      utterance.onend = () => {
+        // As soon as sentence audio finishes, automatically advance to next sentence!
+        if (isAutomatedRunningRef.current) {
+          if (index + 1 < sentences.length) {
+            playAutomatedSentence(index + 1);
+          } else {
+            setIsAutomatedRunning(false);
+            setHasCompleted(true);
+            setEstimatedWpm(pacerSpeed);
+          }
+        }
+      };
+
+      utterance.onerror = () => {
+        // Fallback: if audio fails, fallback to timer advance
+        if (isAutomatedRunningRef.current && index + 1 < sentences.length) {
+          playAutomatedSentence(index + 1);
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // 2. Animate countdown progress line across the sentence
+    if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
     pacerElapsedRef.current = 0;
     const intervalMs = 40;
 
-    scrollToSentence(activeSentenceIndex);
-
     pacerTimerRef.current = setInterval(() => {
       pacerElapsedRef.current += intervalMs;
-      const pct = Math.min(100, (pacerElapsedRef.current / targetDurationMs) * 100);
+      const pct = Math.min(100, (pacerElapsedRef.current / durationMs) * 100);
       setSentenceProgress(pct);
 
-      if (pct >= 100) {
+      // If voice is muted, timer advances to the next sentence automatically
+      if (!voiceEnabled && pct >= 100) {
         clearInterval(pacerTimerRef.current);
-
-        // Advance to next sentence from top to bottom
-        if (activeSentenceIndex + 1 < sentences.length) {
-          setActiveSentenceIndex(prev => prev + 1);
-        } else {
-          // Completed full story!
-          setIsPacerRunning(false);
-          setHasCompleted(true);
-          setEstimatedWpm(pacerSpeed);
+        if (isAutomatedRunningRef.current) {
+          if (index + 1 < sentences.length) {
+            playAutomatedSentence(index + 1);
+          } else {
+            setIsAutomatedRunning(false);
+            setHasCompleted(true);
+            setEstimatedWpm(pacerSpeed);
+          }
         }
       }
     }, intervalMs);
+  };
 
-    return () => {
+  // Toggle automated reading
+  const toggleAutomatedReading = () => {
+    if (isAutomatedRunning) {
+      // Pause
+      setIsAutomatedRunning(false);
+      window.speechSynthesis?.cancel();
       if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
-    };
-  }, [isPacerRunning, activeSentenceIndex, pacerSpeed, sentences]);
-
-  const toggleSpeedPacer = () => {
-    if (isPacerRunning) {
-      setIsPacerRunning(false);
       return;
     }
 
-    // Stop competing speech synthesis
-    window.speechSynthesis?.cancel();
-    setIsPlayingAudio(false);
-    setPlayingSentenceIndex(null);
-
-    // If at the end, start from sentence 0
-    if (activeSentenceIndex >= sentences.length - 1) {
-      setActiveSentenceIndex(0);
-    }
+    // Start
+    setIsAutomatedRunning(true);
     setHasCompleted(false);
-    setIsPacerRunning(true);
+
+    const startIndex = activeSentenceIndex >= sentences.length - 1 ? 0 : activeSentenceIndex;
+    playAutomatedSentence(startIndex);
   };
 
-  // Native Speaker audio playback with sentence tracking
-  const playSequentialAudio = (startIndex: number) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
-    if (startIndex >= sentences.length) {
-      setIsPlayingAudio(false);
-      setPlayingSentenceIndex(null);
-      return;
-    }
-
-    setActiveSentenceIndex(startIndex);
-    setPlayingSentenceIndex(startIndex);
-    scrollToSentence(startIndex);
-
-    const utterance = new SpeechSynthesisUtterance(sentences[startIndex]);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-
-    utterance.onend = () => {
-      if (startIndex + 1 < sentences.length) {
-        playSequentialAudio(startIndex + 1);
-      } else {
-        setIsPlayingAudio(false);
-        setPlayingSentenceIndex(null);
-      }
-    };
-
-    utterance.onerror = () => {
-      setIsPlayingAudio(false);
-      setPlayingSentenceIndex(null);
-    };
-
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const toggleAudio = () => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    if (isPlayingAudio) {
-      window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
-      setPlayingSentenceIndex(null);
-      return;
-    }
-
-    setIsPacerRunning(false);
-    setIsPlayingAudio(true);
-    playSequentialAudio(activeSentenceIndex < sentences.length ? activeSentenceIndex : 0);
-  };
-
-  // Play single individual sentence
-  const playSingleSentence = (idx: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
-    setIsPlayingAudio(false);
-    setIsPacerRunning(false);
-
+  // Manual jump to specific sentence
+  const handleSelectSentence = (idx: number) => {
     setActiveSentenceIndex(idx);
-    setPlayingSentenceIndex(idx);
+    scrollToSentence(idx);
+    setSentenceProgress(0);
 
-    const utterance = new SpeechSynthesisUtterance(sentences[idx]);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.onend = () => setPlayingSentenceIndex(null);
-    utterance.onerror = () => setPlayingSentenceIndex(null);
-
-    window.speechSynthesis.speak(utterance);
+    // If already running automatically, continue from selected sentence
+    if (isAutomatedRunning) {
+      playAutomatedSentence(idx);
+    }
   };
 
-  // Microphone read aloud
+  const handlePrevSentence = () => {
+    if (activeSentenceIndex > 0) {
+      const prev = activeSentenceIndex - 1;
+      setActiveSentenceIndex(prev);
+      scrollToSentence(prev);
+      setSentenceProgress(0);
+      if (isAutomatedRunning) playAutomatedSentence(prev);
+    }
+  };
+
+  const handleNextSentence = () => {
+    if (activeSentenceIndex < sentences.length - 1) {
+      const next = activeSentenceIndex + 1;
+      setActiveSentenceIndex(next);
+      scrollToSentence(next);
+      setSentenceProgress(0);
+      if (isAutomatedRunning) playAutomatedSentence(next);
+    }
+  };
+
+  // Microphone practice
   const toggleRecording = () => {
     if (isRecording) {
       setIsRecording(false);
@@ -239,10 +239,10 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       return;
     }
 
+    // Pause automated reading when mic practice starts
+    setIsAutomatedRunning(false);
     window.speechSynthesis?.cancel();
-    setIsPlayingAudio(false);
-    setPlayingSentenceIndex(null);
-    setIsPacerRunning(false);
+    if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
 
     setHasCompleted(false);
     setEstimatedWpm(null);
@@ -255,10 +255,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   };
 
   const resetPractice = () => {
+    setIsAutomatedRunning(false);
     window.speechSynthesis?.cancel();
-    setIsPlayingAudio(false);
-    setPlayingSentenceIndex(null);
-    setIsPacerRunning(false);
     if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
     if (recordTimerRef.current) clearInterval(recordTimerRef.current);
 
@@ -269,28 +267,21 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     setIsRecording(false);
   };
 
-  const handleSelectSentence = (idx: number) => {
-    setActiveSentenceIndex(idx);
-    scrollToSentence(idx);
-  };
+  // Play single sentence audio on demand
+  const playSingleAudio = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
-  const handlePrevSentence = () => {
-    if (activeSentenceIndex > 0) {
-      setActiveSentenceIndex(prev => prev - 1);
-      scrollToSentence(activeSentenceIndex - 1);
-    }
-  };
-
-  const handleNextSentence = () => {
-    if (activeSentenceIndex < sentences.length - 1) {
-      setActiveSentenceIndex(prev => prev + 1);
-      scrollToSentence(activeSentenceIndex + 1);
-    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(sentences[idx]);
+    utterance.rate = getSpeechRate(pacerSpeed);
+    utterance.pitch = 1.0;
+    window.speechSynthesis.speak(utterance);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: '780px', margin: '0 auto', paddingBottom: 'var(--space-10)' }}>
-      {/* 1. Clean Minimalist Title Header */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: '920px', margin: '0 auto', paddingBottom: 'var(--space-10)' }}>
+      {/* 1. Header: Story Title & Reading Meta */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
@@ -309,7 +300,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
           <h1
             style={{
-              fontSize: 'clamp(1.5rem, 3.2vw, 2.1rem)',
+              fontSize: 'clamp(1.5rem, 3vw, 2.2rem)',
               fontWeight: 800,
               color: 'var(--color-text-primary)',
               lineHeight: 1.25,
@@ -328,50 +319,50 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             className="tap-interactive"
             title="Adjust text size"
             style={{
-              padding: '6px 10px',
+              padding: '6px 12px',
               borderRadius: 'var(--radius-pill)',
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '5px',
               fontSize: '0.75rem',
               fontWeight: 700,
               cursor: 'pointer',
               color: 'var(--color-text-primary)'
             }}
           >
-            {textSize === 'normal' ? <ZoomIn size={13} /> : <ZoomOut size={13} />}
-            <span>{textSize === 'normal' ? 'Larger' : 'Standard'}</span>
+            {textSize === 'normal' ? <ZoomIn size={14} /> : <ZoomOut size={14} />}
+            <span>{textSize === 'normal' ? 'Larger Text' : 'Standard'}</span>
           </button>
 
-          {(hasCompleted || isRecording || isPacerRunning || readingSeconds > 0) && (
+          {(hasCompleted || isRecording || isAutomatedRunning || readingSeconds > 0) && (
             <button
               onClick={resetPractice}
               className="tap-interactive"
               title="Reset"
               style={{
-                padding: '6px 10px',
+                padding: '6px 12px',
                 borderRadius: 'var(--radius-pill)',
                 background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '5px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 color: 'var(--color-text-secondary)'
               }}
             >
-              <RotateCcw size={12} />
+              <RotateCcw size={13} />
               <span>Reset</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 2. Unified Sleek Floating Toolbar */}
+      {/* 2. Automated Action Toolbar */}
       <div
         style={{
           display: 'flex',
@@ -379,45 +370,69 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '12px',
-          padding: '10px 16px',
+          padding: '10px 18px',
           background: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius-pill)',
-          boxShadow: isPacerRunning
-            ? '0 6px 20px rgba(16, 185, 129, 0.22)'
+          boxShadow: isAutomatedRunning
+            ? '0 6px 24px rgba(16, 185, 129, 0.25)'
             : '0 4px 16px rgba(0, 0, 0, 0.05)',
           position: 'sticky',
           top: '12px',
           zIndex: 30,
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(12px)',
+          transition: 'all 0.25s ease'
         }}
       >
-        {/* Left: Speed Pacer Launch Button */}
+        {/* Left: Main Automated Read Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
-            onClick={toggleSpeedPacer}
+            onClick={toggleAutomatedReading}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 18px',
+              gap: '8px',
+              padding: '9px 20px',
               borderRadius: 'var(--radius-pill)',
               border: 'none',
-              background: isPacerRunning
+              background: isAutomatedRunning
                 ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
                 : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: '#ffffff',
               fontWeight: 800,
-              fontSize: '0.8125rem',
+              fontSize: '0.875rem',
               cursor: 'pointer',
-              boxShadow: isPacerRunning
-                ? '0 0 14px rgba(239, 68, 68, 0.4)'
-                : '0 0 14px rgba(16, 185, 129, 0.35)',
+              boxShadow: isAutomatedRunning
+                ? '0 0 16px rgba(239, 68, 68, 0.4)'
+                : '0 0 16px rgba(16, 185, 129, 0.35)',
               transition: 'all 0.2s ease'
             }}
           >
-            {isPacerRunning ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
-            <span>{isPacerRunning ? 'Pause' : 'Start Pacer'}</span>
+            {isAutomatedRunning ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
+            <span>{isAutomatedRunning ? 'Pause Reading' : 'Start Auto Reading'}</span>
+          </button>
+
+          {/* Voice Audio Toggle */}
+          <button
+            onClick={() => setVoiceEnabled(prev => !prev)}
+            title={voiceEnabled ? 'Voice audio ON (Click to mute)' : 'Voice audio MUTED (Click to enable voice)'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-pill)',
+              border: '1px solid var(--color-border)',
+              background: voiceEnabled ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
+              color: voiceEnabled ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            <span>Voice {voiceEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Speed Presets */}
@@ -447,82 +462,63 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           </div>
         </div>
 
-        {/* Center: Sentence Stepper */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <button
-            onClick={handlePrevSentence}
-            disabled={activeSentenceIndex === 0}
-            aria-label="Previous sentence"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '26px',
-              height: '26px',
-              borderRadius: '50%',
-              border: 'none',
-              background: 'var(--color-surface-sunken)',
-              color: activeSentenceIndex === 0 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-              cursor: activeSentenceIndex === 0 ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <ChevronLeft size={14} />
-          </button>
+        {/* Center/Right: Sentence Stepper & Mic */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Stepper */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button
+              onClick={handlePrevSentence}
+              disabled={activeSentenceIndex === 0}
+              aria-label="Previous sentence"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'var(--color-surface-sunken)',
+                color: activeSentenceIndex === 0 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                cursor: activeSentenceIndex === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
 
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)', minWidth: '85px', textAlign: 'center' }}>
-            {activeSentenceIndex + 1} of {sentences.length}
-          </span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)', minWidth: '75px', textAlign: 'center' }}>
+              {activeSentenceIndex + 1} of {sentences.length}
+            </span>
 
-          <button
-            onClick={handleNextSentence}
-            disabled={activeSentenceIndex === sentences.length - 1}
-            aria-label="Next sentence"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '26px',
-              height: '26px',
-              borderRadius: '50%',
-              border: 'none',
-              background: 'var(--color-surface-sunken)',
-              color: activeSentenceIndex === sentences.length - 1 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-              cursor: activeSentenceIndex === sentences.length - 1 ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <ChevronRight size={14} />
-          </button>
-        </div>
+            <button
+              onClick={handleNextSentence}
+              disabled={activeSentenceIndex === sentences.length - 1}
+              aria-label="Next sentence"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'var(--color-surface-sunken)',
+                color: activeSentenceIndex === sentences.length - 1 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                cursor: activeSentenceIndex === sentences.length - 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
 
-        {/* Right: Native Audio & Record Mic */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <button
-            onClick={toggleAudio}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-pill)',
-              border: '1px solid var(--color-border)',
-              background: isPlayingAudio ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
-              color: isPlayingAudio ? 'var(--color-primary)' : 'var(--color-text-primary)',
-              fontWeight: 700,
-              fontSize: '0.75rem',
-              cursor: 'pointer'
-            }}
-          >
-            {isPlayingAudio ? <Square size={13} fill="currentColor" /> : <Volume2 size={13} />}
-            <span>{isPlayingAudio ? 'Stop' : 'Listen'}</span>
-          </button>
-
+          {/* Record Mic */}
           <button
             onClick={toggleRecording}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '6px 12px',
+              padding: '6px 14px',
               borderRadius: 'var(--radius-pill)',
               border: '1px solid var(--color-border)',
               background: isRecording ? 'rgba(239, 68, 68, 0.15)' : 'var(--color-surface)',
@@ -532,13 +528,13 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               cursor: 'pointer'
             }}
           >
-            {isRecording ? <MicOff size={13} /> : <Mic size={13} />}
-            <span>{isRecording ? `${readingSeconds}s` : 'Mic'}</span>
+            {isRecording ? <MicOff size={14} /> : <Mic size={14} />}
+            <span>{isRecording ? `${readingSeconds}s` : 'Practice Mic'}</span>
           </button>
         </div>
       </div>
 
-      {/* 3. The Continuous Reading Canvas (Editorial, Fluid, No Box-in-Box) */}
+      {/* 3. The Continuous Reading Canvas: Automated Flow */}
       <div
         style={{
           background: 'var(--color-surface)',
@@ -561,31 +557,31 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           {sentences.map((sentence, idx) => {
             const isActive = idx === activeSentenceIndex;
             const isPast = idx < activeSentenceIndex;
-            const isSpeakingThis = idx === playingSentenceIndex;
 
             return (
               <div
                 key={idx}
-                ref={(el) => (sentenceRefs.current[idx] = el as any)}
+                ref={(el) => (sentenceRefs.current[idx] = el)}
                 onClick={() => handleSelectSentence(idx)}
                 style={{
                   position: 'relative',
-                  padding: isActive ? '12px 16px' : '8px 12px',
+                  padding: isActive ? '14px 18px' : '8px 12px',
                   borderRadius: 'var(--radius-md)',
                   background: isActive
-                    ? 'rgba(37, 99, 235, 0.08)'
+                    ? 'rgba(37, 99, 235, 0.09)'
                     : 'transparent',
                   borderLeft: isActive
                     ? '4px solid var(--color-primary)'
                     : isPast
-                    ? '4px solid rgba(16, 185, 129, 0.4)'
+                    ? '4px solid rgba(16, 185, 129, 0.45)'
                     : '4px solid transparent',
-                  opacity: isActive ? 1.0 : isPast ? 0.6 : 0.78,
-                  transition: 'all 0.24s ease',
+                  opacity: isActive ? 1.0 : isPast ? 0.65 : 0.82,
+                  boxShadow: isActive ? '0 4px 16px rgba(37, 99, 235, 0.12)' : 'none',
+                  transition: 'all 0.25s ease',
                   cursor: 'pointer'
                 }}
               >
-                {/* Sentence text with inline controls */}
+                {/* Sentence text with audio button */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                   <span
                     style={{
@@ -602,34 +598,34 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                   {isActive && (
                     <button
                       type="button"
-                      onClick={(e) => playSingleSentence(idx, e)}
-                      title="Hear this sentence"
+                      onClick={(e) => playSingleAudio(idx, e)}
+                      title="Replay this sentence"
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: '26px',
-                        height: '26px',
+                        width: '28px',
+                        height: '28px',
                         borderRadius: '50%',
                         border: 'none',
-                        background: isSpeakingThis ? 'var(--color-primary)' : 'var(--color-surface-sunken)',
-                        color: isSpeakingThis ? '#ffffff' : 'var(--color-text-secondary)',
+                        background: 'var(--color-surface-sunken)',
+                        color: 'var(--color-primary)',
                         cursor: 'pointer',
                         flexShrink: 0,
                         marginTop: '2px',
                         transition: 'all 0.15s ease'
                       }}
                     >
-                      <Volume2 size={13} />
+                      <Volume2 size={14} />
                     </button>
                   )}
                 </div>
 
                 {/* Animated Speed Pacer Countdown Line under the active sentence */}
-                {isActive && isPacerRunning && (
+                {isActive && isAutomatedRunning && (
                   <div
                     style={{
-                      marginTop: '8px',
+                      marginTop: '10px',
                       height: '3px',
                       background: 'var(--color-border-subtle)',
                       borderRadius: 'var(--radius-pill)',
@@ -652,7 +648,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         </div>
       </div>
 
-      {/* 4. Completion Modal Card (Only shown when truly completed at the bottom) */}
+      {/* 4. Completion Modal Card (Only shown when truly completed) */}
       {hasCompleted && estimatedWpm && (
         <Card variant="default" padding="md" className="celebrate-pop" style={{ borderLeft: '4px solid var(--color-success)', background: 'var(--color-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
@@ -663,7 +659,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                   Reading Session Complete!
                 </div>
                 <div className="typography-caption" style={{ color: 'var(--color-text-secondary)' }}>
-                  You read all {sentences.length} sentences ({passage.wordCount} words) smoothly.
+                  You completed all {sentences.length} sentences ({passage.wordCount} words) smoothly!
                 </div>
               </div>
             </div>
@@ -695,7 +691,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             </h3>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
             {passage.vocabularyWords.map((vocab) => (
               <div
                 key={vocab.id}
