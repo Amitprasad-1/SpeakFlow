@@ -1,6 +1,614 @@
 import { ReadingPassage } from '../types/index.js';
 
 export const READING_PASSAGES_CATALOG: ReadingPassage[] = [
+  // 1. Topic: Daily Routine & Morning Coffee (160 words)
+  {
+    id: 'passage_daily_life_1',
+    title: 'The Morning Rush and a Hot Cup of Coffee',
+    topic: 'Daily life',
+    cefrLevel: 'B1',
+    targetPhonemes: ['R_L', 'T_D', 'S_SH'],
+    wordCount: 160,
+    suggestedDurationSeconds: 69,
+    passageText:
+      "Every morning at seven o'clock, my alarm clock buzzes insistently on the bedside table. I roll out of bed, stretch my tired arms, and open the window to let the crisp morning air refresh my small bedroom. The city is already bustling with early commuters hurrying toward the underground station with umbrellas tucked under their coats. My favorite morning ritual is preparing a fresh cup of coffee in the kitchen. The rich aroma of roasted coffee beans immediately lifts my spirits and sharpens my focus for the busy day ahead. While the water boils gently in the kettle, I quickly glance at my schedule on my mobile phone. There are three team meetings scheduled before noon, so planning my morning priorities is essential. After finishing a warm buttered toast, I grab my backpack, double-check that my keys and wallet are inside my pocket, and step out into the lively neighborhood streets ready to tackle whatever challenges the day might bring.",
+    vocabularyWords: [
+      {
+        id: 'vocab_dl_1',
+        word: 'insistently',
+        phoneticIpa: '/ɪnˈsɪs.tənt.li/',
+        syllableBreakdown: 'in-sis-tent-ly',
+        primaryStressSyllable: 2,
+        definition: 'In a persistent manner that demands immediate attention.',
+        partOfSpeech: 'adverb',
+        exampleInPassage: 'my alarm clock buzzes insistently on the bedside table.',
+        collocations: ['buzz insistently', 'ask insistently'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_dl_2',
+        word: 'commuters',
+        phoneticIpa: '/kəˈmjuː.təz/',
+        syllableBreakdown: 'com-mut-ers',
+        primaryStressSyllable: 2,
+        definition: 'People who travel regularly over a distance between work and home.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'bustling with early commuters hurrying toward the underground station',
+        collocations: ['daily commuters', 'morning commuters'],
+        targetPhoneme: 'T_D'
+      },
+      {
+        id: 'vocab_dl_3',
+        word: 'ritual',
+        phoneticIpa: '/ˈrɪtʃ.u.əl/',
+        syllableBreakdown: 'rit-u-al',
+        primaryStressSyllable: 1,
+        definition: 'A routine or customary series of actions followed regularly.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'My favorite morning ritual is preparing a fresh cup of coffee',
+        collocations: ['morning ritual', 'daily ritual'],
+        targetPhoneme: 'R_L'
+      },
+      {
+        id: 'vocab_dl_4',
+        word: 'aroma',
+        phoneticIpa: '/əˈroʊ.mə/',
+        syllableBreakdown: 'a-ro-ma',
+        primaryStressSyllable: 2,
+        definition: 'A distinctive, typically pleasant and savory smell.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'The rich aroma of roasted coffee beans immediately lifts my spirits',
+        collocations: ['rich aroma', 'fresh aroma', 'pleasant aroma'],
+        targetPhoneme: 'R_L'
+      },
+      {
+        id: 'vocab_dl_5',
+        word: 'priorities',
+        phoneticIpa: '/praɪˈɒr.ə.tiz/',
+        syllableBreakdown: 'pri-or-i-ties',
+        primaryStressSyllable: 2,
+        definition: 'Things that are regarded as more important than others.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'planning my morning priorities is essential.',
+        collocations: ['set priorities', 'top priorities'],
+        targetPhoneme: 'R_L'
+      },
+      {
+        id: 'vocab_dl_6',
+        word: 'essential',
+        phoneticIpa: '/ɪˈsɛn.ʃəl/',
+        syllableBreakdown: 'es-sen-tial',
+        primaryStressSyllable: 2,
+        definition: 'Extremely important or necessary in a particular situation.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'planning my morning priorities is essential.',
+        collocations: ['essential tool', 'vital and essential'],
+        targetPhoneme: 'S_SH'
+      }
+    ]
+  },
+
+  // 2. Topic: Cooking Dinner with Friends (167 words)
+  {
+    id: 'passage_daily_life_2',
+    title: 'Cooking a Homemade Dinner with Friends',
+    topic: 'Daily life',
+    cefrLevel: 'B1',
+    targetPhonemes: ['CH_J', 'R_L', 'TH'],
+    wordCount: 167,
+    suggestedDurationSeconds: 72,
+    passageText:
+      'After a long and demanding workweek, cooking a hearty dinner at home with close friends is the perfect way to unwind. Yesterday evening, my friends arrived at my apartment carrying brown grocery bags filled with ripe tomatoes, fragrant basil, garlic, and fresh pasta. We gathered around the small kitchen counter, turned on upbeat music, and divided the cooking tasks enthusiastically. While Daniel chopped garlic and onions with admirable speed, Sarah stirred a simmering pot of homemade tomato sauce that filled the room with a wonderful aroma. Meanwhile, I prepared a crisp green salad tossed with olive oil and toasted sunflower seeds. Cooking together creates an atmosphere of spontaneous conversation, where everyone shares funny stories and reflects on the past week without any distractions. As we set the table with warm plates and lit a small scented candle, the relaxed laughter made all our weekday fatigue vanish. Sitting down together to enjoy our delicious meal reminded us how simple shared moments strengthen friendships and nourish our overall well-being.',
+    vocabularyWords: [
+      {
+        id: 'vocab_cf_1',
+        word: 'demanding',
+        phoneticIpa: '/dɪˈmɑːn.dɪŋ/',
+        syllableBreakdown: 'de-mand-ing',
+        primaryStressSyllable: 2,
+        definition: 'Requiring much time, effort, or careful attention.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'After a long and demanding workweek, cooking a hearty dinner',
+        collocations: ['demanding schedule', 'demanding job'],
+        targetPhoneme: 'T_D'
+      },
+      {
+        id: 'vocab_cf_2',
+        word: 'unwind',
+        phoneticIpa: '/ʌnˈwaɪnd/',
+        syllableBreakdown: 'un-wind',
+        primaryStressSyllable: 2,
+        definition: 'To relax after a period of work, tension, or activity.',
+        partOfSpeech: 'verb',
+        exampleInPassage: 'the perfect way to unwind.',
+        collocations: ['unwind after work', 'help unwind'],
+        targetPhoneme: 'V_W'
+      },
+      {
+        id: 'vocab_cf_3',
+        word: 'enthusiastically',
+        phoneticIpa: '/ɪnˌθjuː.ziˈæs.tɪ.kəl.i/',
+        syllableBreakdown: 'en-thu-si-as-ti-cal-ly',
+        primaryStressSyllable: 3,
+        definition: 'In a way that shows intense and eager enjoyment or interest.',
+        partOfSpeech: 'adverb',
+        exampleInPassage: 'divided the cooking tasks enthusiastically.',
+        collocations: ['agree enthusiastically', 'participate enthusiastically'],
+        targetPhoneme: 'TH'
+      },
+      {
+        id: 'vocab_cf_4',
+        word: 'simmering',
+        phoneticIpa: '/ˈsɪm.ər.ɪŋ/',
+        syllableBreakdown: 'sim-mer-ing',
+        primaryStressSyllable: 1,
+        definition: 'Cooking gently just below the boiling point.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'Sarah stirred a simmering pot of homemade tomato sauce',
+        collocations: ['simmering gently', 'simmering pot'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_cf_5',
+        word: 'spontaneous',
+        phoneticIpa: '/spɒnˈteɪ.ni.əs/',
+        syllableBreakdown: 'spon-ta-ne-ous',
+        primaryStressSyllable: 2,
+        definition: 'Happening naturally or without premeditation or external planning.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'Cooking together creates an atmosphere of spontaneous conversation',
+        collocations: ['spontaneous applause', 'spontaneous conversation'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_cf_6',
+        word: 'distractions',
+        phoneticIpa: '/dɪˈstræk.ʃənz/',
+        syllableBreakdown: 'dis-trac-tions',
+        primaryStressSyllable: 2,
+        definition: 'Things that prevent someone from giving full attention to something else.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'reflects on the past week without any distractions.',
+        collocations: ['digital distractions', 'avoid distractions'],
+        targetPhoneme: 'T_D'
+      }
+    ]
+  },
+
+  // 3. Topic: Weekend Road Trip (168 words)
+  {
+    id: 'passage_daily_life_3',
+    title: 'A Spontaneous Weekend Road Trip',
+    topic: 'Travel',
+    cefrLevel: 'B1',
+    targetPhonemes: ['V_W', 'R_L', 'K_G'],
+    wordCount: 168,
+    suggestedDurationSeconds: 72,
+    passageText:
+      'Early on Saturday morning, my brother and I decided to leave the bustling city behind and take a spontaneous road trip toward the coast. We packed a lightweight backpack with water bottles, healthy snacks, sunglasses, and a comfortable warm sweater in case the ocean breeze turned chilly. Driving along the winding highway with the car windows rolled down offered a breathtaking view of rolling hills and lush pine forests. Along the route, we stopped at a charming roadside bakery to pick up freshly baked cinnamon rolls and hot apple cider. The friendly shopkeeper smiled warmly and recommended a quiet scenic overlook located just a few miles down the road. When we arrived at the rocky viewpoint, the vast horizon opened up before our eyes in dazzling blue sunlight. Standing at the edge of the scenic cliff watching the turquoise waves crash against the rocks felt completely rejuvenating. Taking occasional short weekend trips allows our minds to reset, disconnect from digital screens, and appreciate the natural beauty around us.',
+    vocabularyWords: [
+      {
+        id: 'vocab_rt_1',
+        word: 'spontaneous',
+        phoneticIpa: '/spɒnˈteɪ.ni.əs/',
+        syllableBreakdown: 'spon-ta-ne-ous',
+        primaryStressSyllable: 2,
+        definition: 'Performed or occurring as a result of a sudden impulse without planning.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'take a spontaneous road trip toward the coast.',
+        collocations: ['spontaneous trip', 'spontaneous decision'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_rt_2',
+        word: 'breathtaking',
+        phoneticIpa: '/ˈbrɛθˌteɪ.kɪŋ/',
+        syllableBreakdown: 'breath-tak-ing',
+        primaryStressSyllable: 1,
+        definition: 'Astonishing or awe-inspiring in quality, scenery, or beauty.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'offered a breathtaking view of rolling hills',
+        collocations: ['breathtaking view', 'breathtaking scenery'],
+        targetPhoneme: 'TH'
+      },
+      {
+        id: 'vocab_rt_3',
+        word: 'charming',
+        phoneticIpa: '/ˈtʃɑː.mɪŋ/',
+        syllableBreakdown: 'charm-ing',
+        primaryStressSyllable: 1,
+        definition: 'Very pleasant, delightful, and attractive in appearance.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'stopped at a charming roadside bakery',
+        collocations: ['charming town', 'charming smile'],
+        targetPhoneme: 'CH_J'
+      },
+      {
+        id: 'vocab_rt_4',
+        word: 'scenic',
+        phoneticIpa: '/ˈsiː.nɪk/',
+        syllableBreakdown: 'sce-nic',
+        primaryStressSyllable: 1,
+        definition: 'Providing or relating to views of impressive natural scenery.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'recommended a quiet scenic overlook',
+        collocations: ['scenic route', 'scenic view'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_rt_5',
+        word: 'rejuvenating',
+        phoneticIpa: '/rɪˈdʒuː.və.neɪ.tɪŋ/',
+        syllableBreakdown: 're-ju-ve-nat-ing',
+        primaryStressSyllable: 2,
+        definition: 'Giving new energy, freshness, or vigor to body and mind.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'watching the turquoise waves crash against the rocks felt completely rejuvenating.',
+        collocations: ['rejuvenating break', 'rejuvenating sleep'],
+        targetPhoneme: 'CH_J'
+      },
+      {
+        id: 'vocab_rt_6',
+        word: 'occasional',
+        phoneticIpa: '/əˈkeɪ.ʒən.əl/',
+        syllableBreakdown: 'oc-ca-sion-al',
+        primaryStressSyllable: 2,
+        definition: 'Occurring, appearing, or done infrequently and irregularly.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'Taking occasional short weekend trips allows our minds to reset',
+        collocations: ['occasional visits', 'occasional break'],
+        targetPhoneme: 'K_G'
+      }
+    ]
+  },
+
+  // 4. Topic: Settling Into a New Apartment (164 words)
+  {
+    id: 'passage_daily_life_4',
+    title: 'Settling Into a Brand New Apartment',
+    topic: 'Daily life',
+    cefrLevel: 'B1',
+    targetPhonemes: ['S_SH', 'TH', 'B_P'],
+    wordCount: 164,
+    suggestedDurationSeconds: 70,
+    passageText:
+      'Moving into a new apartment is both thrilling and slightly exhausting. Last Saturday, with the generous assistance of two good friends, I finally hauled the last cardboard box up the staircase into my third-floor living room. Sunlight poured through the large southern windows, illuminating the polished wooden floorboards and empty shelves waiting to be arranged. We spent several hours assembling the bookshelf, unpacking kitchenware, and carefully hanging curtains over the windows. Around mid-afternoon, our friendly next-door neighbor knocked softly on the door to introduce herself and offered a warm welcome to the building. She kindly shared helpful tips about the best nearby grocery stores and public transport connections. We chatted on the porch about neighborhood cafes and quiet parks nearby. By evening, after our friends headed home, I sat quietly on the sofa holding a warm mug of chamomile tea, admiring the newly organized space. Transforming an unfamiliar apartment into a warm, comfortable home is truly an empowering personal milestone that brings lasting peace.',
+    vocabularyWords: [
+      {
+        id: 'vocab_ap_1',
+        word: 'exhausting',
+        phoneticIpa: '/ɪɡˈzɔː.stɪŋ/',
+        syllableBreakdown: 'ex-haust-ing',
+        primaryStressSyllable: 2,
+        definition: 'Making one feel extremely tired and drained of physical energy.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'Moving into a new apartment is both thrilling and slightly exhausting.',
+        collocations: ['physically exhausting', 'exhausting journey'],
+        targetPhoneme: 'K_G'
+      },
+      {
+        id: 'vocab_ap_2',
+        word: 'generous',
+        phoneticIpa: '/ˈdʒɛn.ər.əs/',
+        syllableBreakdown: 'gen-er-ous',
+        primaryStressSyllable: 1,
+        definition: 'Showing a ready willingness to give help or kindness freely.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'with the generous assistance of two good friends',
+        collocations: ['generous offer', 'generous support'],
+        targetPhoneme: 'CH_J'
+      },
+      {
+        id: 'vocab_ap_3',
+        word: 'illuminating',
+        phoneticIpa: '/ɪˈluː.mɪ.neɪ.tɪŋ/',
+        syllableBreakdown: 'il-lu-mi-nat-ing',
+        primaryStressSyllable: 2,
+        definition: 'Lighting up and making something bright and visible.',
+        partOfSpeech: 'verb',
+        exampleInPassage: 'illuminating the polished wooden floorboards and empty shelves',
+        collocations: ['illuminating the room', 'brightly illuminating'],
+        targetPhoneme: 'R_L'
+      },
+      {
+        id: 'vocab_ap_4',
+        word: 'assembling',
+        phoneticIpa: '/əˈsɛm.blɪŋ/',
+        syllableBreakdown: 'as-sem-bling',
+        primaryStressSyllable: 2,
+        definition: 'Fitting together the separate component parts of something.',
+        partOfSpeech: 'verb',
+        exampleInPassage: 'We spent several hours assembling the bookshelf',
+        collocations: ['assembling furniture', 'carefully assembling'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_ap_5',
+        word: 'unfamiliar',
+        phoneticIpa: '/ˌʌn.fəˈmɪl.i.ər/',
+        syllableBreakdown: 'un-fa-mil-iar',
+        primaryStressSyllable: 3,
+        definition: 'Not known or recognized; unfamiliar or strange in nature.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'Transforming an unfamiliar apartment into a warm, comfortable home',
+        collocations: ['unfamiliar environment', 'unfamiliar surroundings'],
+        targetPhoneme: 'F_V'
+      },
+      {
+        id: 'vocab_ap_6',
+        word: 'milestone',
+        phoneticIpa: '/ˈmaɪl.stoʊn/',
+        syllableBreakdown: 'mile-stone',
+        primaryStressSyllable: 1,
+        definition: 'An important stage, event, or turning point in life or progress.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'truly an empowering personal milestone that brings lasting peace.',
+        collocations: ['major milestone', 'personal milestone'],
+        targetPhoneme: 'S_SH'
+      }
+    ]
+  },
+
+  // 5. Topic: Local Farmer's Market (161 words)
+  {
+    id: 'passage_daily_life_5',
+    title: 'A Saturday Morning at the Local Market',
+    topic: 'Daily life',
+    cefrLevel: 'B1',
+    targetPhonemes: ['R_L', 'F_V', 'T_D'],
+    wordCount: 161,
+    suggestedDurationSeconds: 69,
+    passageText:
+      'One of my favorite weekend pastimes is strolling through the neighborhood open-air market early on Saturday morning. By eight o\'clock, local farmers and bakers have already arranged their wooden stalls along the bustling town square. Tables overflow with bright red strawberries, crisp apples, jars of golden wildflower honey, and freshly baked artisan loaves of bread. The lively atmosphere is filled with cheerful greetings as regular customers converse with vendors about seasonal harvests and cooking techniques. I stopped at an organic vegetable stand to select fresh spinach, crunchy carrots, and sweet bell peppers for our weekend family lunch. The elderly farmer proudly explained how they cultivate their produce sustainably without synthetic chemicals. Nearby, a talented street musician was strumming an acoustic guitar, adding a pleasant melody to the sunny morning air. Carrying a woven basket packed with wholesome groceries, I felt a deep sense of connection to my local community. Shopping at local markets encourages mindful nutrition while supporting hardworking small businesses.',
+    vocabularyWords: [
+      {
+        id: 'vocab_fm_1',
+        word: 'pastimes',
+        phoneticIpa: '/ˈpɑːs.taɪmz/',
+        syllableBreakdown: 'pas-times',
+        primaryStressSyllable: 1,
+        definition: 'Activities done regularly for enjoyment rather than work.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'One of my favorite weekend pastimes is strolling',
+        collocations: ['favorite pastimes', 'outdoor pastimes'],
+        targetPhoneme: 'B_P'
+      },
+      {
+        id: 'vocab_fm_2',
+        word: 'artisan',
+        phoneticIpa: '/ˈɑː.tɪ.zæn/',
+        syllableBreakdown: 'ar-ti-san',
+        primaryStressSyllable: 1,
+        definition: 'Made in a traditional or non-mechanized way using high-quality ingredients.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'freshly baked artisan loaves of bread.',
+        collocations: ['artisan bread', 'artisan bakery'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_fm_3',
+        word: 'converse',
+        phoneticIpa: '/kənˈvɜːs/',
+        syllableBreakdown: 'con-verse',
+        primaryStressSyllable: 2,
+        definition: 'Engage in conversation with another person.',
+        partOfSpeech: 'verb',
+        exampleInPassage: 'regular customers converse with vendors about seasonal harvests',
+        collocations: ['converse freely', 'converse with friends'],
+        targetPhoneme: 'F_V'
+      },
+      {
+        id: 'vocab_fm_4',
+        word: 'cultivate',
+        phoneticIpa: '/ˈkʌl.tɪ.veɪt/',
+        syllableBreakdown: 'cul-ti-vate',
+        primaryStressSyllable: 1,
+        definition: 'Prepare and use land for crops, or nurture plants carefully.',
+        partOfSpeech: 'verb',
+        exampleInPassage: 'explained how they cultivate their produce sustainably',
+        collocations: ['cultivate crops', 'cultivate soil'],
+        targetPhoneme: 'K_G'
+      },
+      {
+        id: 'vocab_fm_5',
+        word: 'wholesome',
+        phoneticIpa: '/ˈhoʊl.səm/',
+        syllableBreakdown: 'whole-some',
+        primaryStressSyllable: 1,
+        definition: 'Promoting health or well-being of mind and body.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'woven basket packed with wholesome groceries',
+        collocations: ['wholesome food', 'wholesome meals'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_fm_6',
+        word: 'nutrition',
+        phoneticIpa: '/njuːˈtrɪʃ.ən/',
+        syllableBreakdown: 'nu-tri-tion',
+        primaryStressSyllable: 2,
+        definition: 'The process of obtaining food necessary for health and growth.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'encourages mindful nutrition while supporting small businesses.',
+        collocations: ['healthy nutrition', 'proper nutrition'],
+        targetPhoneme: 'S_SH'
+      }
+    ]
+  },
+
+  // 6. Topic: Preparing for an Interview (164 words)
+  {
+    id: 'passage_daily_life_6',
+    title: 'Preparing for an Exciting Job Interview',
+    topic: 'Career',
+    cefrLevel: 'B1',
+    targetPhonemes: ['R_L', 'T_D', 'S_SH'],
+    wordCount: 164,
+    suggestedDurationSeconds: 70,
+    passageText:
+      "Preparing for an important job interview requires both thorough professional research and mental composure. Early this morning, I ironed a crisp navy blue shirt, printed three clean copies of my updated resume, and placed them neatly inside a leather folder. In front of the mirror, I practiced answering common interview questions out loud, focusing on maintaining steady eye contact and avoiding unnecessary filler words. Articulating my past achievements with calm confidence helped alleviate my natural nervous anticipation. Before leaving home, I reviewed key facts about the company's recent expansion and noted thoughtful questions to ask the hiring committee at the end of the meeting. During the train journey downtown, I listened to calming instrumental music and practiced three slow, diaphragmatic breaths to center my racing thoughts. Arriving fifteen minutes ahead of time allowed me to walk into the modern company lobby feeling composed, prepared, and eager to showcase my unique skills and professional enthusiasm. Taking time to prepare thoroughly transforms nervousness into genuine self-assurance.",
+    vocabularyWords: [
+      {
+        id: 'vocab_ji_1',
+        word: 'composure',
+        phoneticIpa: '/kəmˈpoʊ.ʒər/',
+        syllableBreakdown: 'com-po-sure',
+        primaryStressSyllable: 2,
+        definition: 'The state or feeling of being calm and in control of oneself.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'requires both thorough professional research and mental composure.',
+        collocations: ['maintain composure', 'regain composure'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_ji_2',
+        word: 'achievements',
+        phoneticIpa: '/əˈtʃiːv.mənts/',
+        syllableBreakdown: 'a-chieve-ments',
+        primaryStressSyllable: 2,
+        definition: 'Things done successfully with effort, skill, or courage.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'Articulating my past achievements with calm confidence',
+        collocations: ['career achievements', 'notable achievements'],
+        targetPhoneme: 'CH_J'
+      },
+      {
+        id: 'vocab_ji_3',
+        word: 'alleviate',
+        phoneticIpa: '/əˈliː.vi.eɪt/',
+        syllableBreakdown: 'al-le-vi-ate',
+        primaryStressSyllable: 2,
+        definition: 'Make suffering, deficiency, or a problem less severe.',
+        partOfSpeech: 'verb',
+        exampleInPassage: 'helped alleviate my natural nervous anticipation.',
+        collocations: ['alleviate stress', 'alleviate anxiety'],
+        targetPhoneme: 'R_L'
+      },
+      {
+        id: 'vocab_ji_4',
+        word: 'anticipation',
+        phoneticIpa: '/ænˌtɪs.ɪˈpeɪ.ʃən/',
+        syllableBreakdown: 'an-tic-i-pa-tion',
+        primaryStressSyllable: 4,
+        definition: 'The action of anticipating something; expectation or excitement.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'alleviate my natural nervous anticipation.',
+        collocations: ['eager anticipation', 'nervous anticipation'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_ji_5',
+        word: 'expansion',
+        phoneticIpa: '/ɪkˈspæn.ʃən/',
+        syllableBreakdown: 'ex-pan-sion',
+        primaryStressSyllable: 2,
+        definition: 'The action of becoming larger or more extensive.',
+        partOfSpeech: 'noun',
+        exampleInPassage: "key facts about the company's recent expansion",
+        collocations: ['rapid expansion', 'global expansion'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_ji_6',
+        word: 'composed',
+        phoneticIpa: '/kəmˈpoʊzd/',
+        syllableBreakdown: 'com-posed',
+        primaryStressSyllable: 2,
+        definition: "Having one's feelings and expression under control; calm.",
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'walk into the modern company lobby feeling composed, prepared',
+        collocations: ['remain composed', 'calm and composed'],
+        targetPhoneme: 'S_SH'
+      }
+    ]
+  },
+
+  // 7. Topic: Catching Up at a Café (160 words)
+  {
+    id: 'passage_daily_life_7',
+    title: 'Catching Up at an Old Neighborhood Café',
+    topic: 'Daily life',
+    cefrLevel: 'B1',
+    targetPhonemes: ['CH_J', 'S_SH', 'R_L'],
+    wordCount: 160,
+    suggestedDurationSeconds: 69,
+    passageText:
+      'Meeting a childhood friend after months of busy work routines brings an irreplaceable sense of comfort and joy. This afternoon, we agreed to meet at a cozy corner café known for its vintage armchairs and delicious pastries. When Maya walked through the front door, we greeted each other warmly with an enthusiastic hug and spent the next hour laughing about humorous memories from our school days. Between sips of fragrant jasmine tea, we talked candidly about our current career ambitions, family news, and upcoming travel aspirations. Time seemed to fly by effortlessly as we shared our honest perspectives on life without any fear of judgment. True friendship provides a compassionate sounding board where you can express vulnerability and celebrate personal milestones freely. As we finally paid the bill and stepped out into the afternoon breeze, I felt deeply grateful for long-standing bonds that remain steadfast through every changing season of life. These precious conversations remind us what truly matters most.',
+    vocabularyWords: [
+      {
+        id: 'vocab_ca_1',
+        word: 'irreplaceable',
+        phoneticIpa: '/ˌɪr.ɪˈpleɪ.sə.bəl/',
+        syllableBreakdown: 'ir-re-place-a-ble',
+        primaryStressSyllable: 3,
+        definition: 'Impossible to replace if lost or damaged; unique and precious.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'brings an irreplaceable sense of comfort and joy.',
+        collocations: ['irreplaceable value', 'truly irreplaceable'],
+        targetPhoneme: 'R_L'
+      },
+      {
+        id: 'vocab_ca_2',
+        word: 'humorous',
+        phoneticIpa: '/ˈhjuː.mər.əs/',
+        syllableBreakdown: 'hu-mor-ous',
+        primaryStressSyllable: 1,
+        definition: 'Causing lighthearted laughter and amusement; comical.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'laughing about humorous memories from our school days.',
+        collocations: ['humorous stories', 'humorous anecdotes'],
+        targetPhoneme: 'R_L'
+      },
+      {
+        id: 'vocab_ca_3',
+        word: 'candidly',
+        phoneticIpa: '/ˈkæn.dɪd.li/',
+        syllableBreakdown: 'can-did-ly',
+        primaryStressSyllable: 1,
+        definition: 'In an honest, open, and straightforward way.',
+        partOfSpeech: 'adverb',
+        exampleInPassage: 'we talked candidly about our current career ambitions',
+        collocations: ['speak candidly', 'discuss candidly'],
+        targetPhoneme: 'K_G'
+      },
+      {
+        id: 'vocab_ca_4',
+        word: 'aspirations',
+        phoneticIpa: '/ˌæs.pɪˈreɪ.ʃənz/',
+        syllableBreakdown: 'as-pi-ra-tions',
+        primaryStressSyllable: 3,
+        definition: 'Hopes or ambitions of achieving something important.',
+        partOfSpeech: 'noun',
+        exampleInPassage: 'family news, and upcoming travel aspirations.',
+        collocations: ['career aspirations', 'future aspirations'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_ca_5',
+        word: 'compassionate',
+        phoneticIpa: '/kəmˈpæʃ.ən.ət/',
+        syllableBreakdown: 'com-pas-sion-ate',
+        primaryStressSyllable: 2,
+        definition: 'Feeling or showing sympathy and concern for others.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'True friendship provides a compassionate sounding board',
+        collocations: ['compassionate listener', 'compassionate care'],
+        targetPhoneme: 'S_SH'
+      },
+      {
+        id: 'vocab_ca_6',
+        word: 'steadfast',
+        phoneticIpa: '/ˈstɛd.fɑːst/',
+        syllableBreakdown: 'stead-fast',
+        primaryStressSyllable: 1,
+        definition: 'Resolutely or dutifully firm and unwavering; loyal.',
+        partOfSpeech: 'adjective',
+        exampleInPassage: 'bonds that remain steadfast through every changing season of life.',
+        collocations: ['steadfast support', 'remain steadfast'],
+        targetPhoneme: 'T_D'
+      }
+    ]
+  },
   // 1. Topic: AI & Technology (166 words)
   {
     id: 'passage_tech_ai_1',
