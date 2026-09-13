@@ -18,7 +18,9 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
-  Volume1
+  Volume1,
+  MessageSquareQuote,
+  Clock
 } from 'lucide-react';
 
 export interface ReadingVideoRecorderProps {
@@ -34,9 +36,11 @@ export interface ReadingVideoRecorderProps {
 
 interface SentenceComparison {
   actual: string;
-  spoken: string;
+  actualWordTokens: { word: string; isSpoken: boolean }[];
+  spokenWords: { word: string; isMatch: boolean }[];
+  spokenText: string;
+  isSpoken: boolean;
   matchScore: number;
-  matchedWords: { word: string; isMatched: boolean }[];
 }
 
 export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
@@ -63,15 +67,16 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
 
-  // Speech Recognition & Spoken Transcripts
+  // Real Speech Recognition Transcripts
   const [spokenTranscript, setSpokenTranscript] = useState<string>('');
   const recognitionRef = useRef<any>(null);
   const spokenTranscriptRef = useRef<string>('');
+  const isRecordingRef = useRef<boolean>(false);
 
   // Audio volume visualizer level (0 - 100)
   const [audioLevel, setAudioLevel] = useState<number>(0);
 
-  // Playing audio for single sentence
+  // Playing model audio for single sentence
   const [speakingSentenceIdx, setSpeakingSentenceIdx] = useState<number | null>(null);
 
   // Refs
@@ -154,6 +159,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
 
   // Stop all media tracks and audio context
   const stopAllMedia = useCallback(() => {
+    isRecordingRef.current = false;
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
@@ -222,7 +228,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
     }
   };
 
-  // 2. Start Recording with Video + Speech Recognition
+  // 2. Start Recording with Video + Real Continuous Speech Recognition
   const startRecording = () => {
     if (!stream) return;
 
@@ -231,6 +237,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
     setRecordedBlob(null);
     setSpokenTranscript('');
     spokenTranscriptRef.current = '';
+    isRecordingRef.current = true;
 
     // Pick supported MIME type
     let mimeType = 'video/webm;codecs=vp9,opus';
@@ -274,7 +281,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
 
-      // Start Speech Recognition to capture what the user speaks
+      // Start Real Speech Recognition
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         try {
@@ -282,24 +289,44 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
           rec.continuous = true;
           rec.interimResults = true;
           rec.lang = 'en-US';
+          rec.maxAlternatives = 1;
+
+          let accumulatedFinal = '';
 
           rec.onresult = (event: any) => {
-            let fullText = '';
-            for (let i = 0; i < event.results.length; i++) {
-              fullText += event.results[i][0].transcript + ' ';
+            let interim = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              const transcriptPiece = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                accumulatedFinal += ' ' + transcriptPiece;
+              } else {
+                interim += ' ' + transcriptPiece;
+              }
             }
-            spokenTranscriptRef.current = fullText.trim();
-            setSpokenTranscript(fullText.trim());
+            const fullRealSpoken = (accumulatedFinal + ' ' + interim).trim();
+            if (fullRealSpoken) {
+              spokenTranscriptRef.current = fullRealSpoken;
+              setSpokenTranscript(fullRealSpoken);
+            }
           };
 
           rec.onerror = (e: any) => {
-            console.warn('SpeechRecognition error in video recorder:', e.error);
+            console.warn('SpeechRecognition error:', e.error);
+          };
+
+          rec.onend = () => {
+            // Auto-restart if user is still actively recording video
+            if (isRecordingRef.current) {
+              try {
+                rec.start();
+              } catch {}
+            }
           };
 
           rec.start();
           recognitionRef.current = rec;
         } catch (err) {
-          console.warn('Speech recognition start failed:', err);
+          console.warn('Speech recognition could not be started:', err);
         }
       }
     } catch (err: any) {
@@ -310,6 +337,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
 
   // 3. Stop Recording
   const stopRecording = () => {
+    isRecordingRef.current = false;
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -352,9 +380,6 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
-  // Calculate estimated WPM from recording
-  const recordedWpm = Math.round((totalWords / Math.max(0.1, recordingSeconds / 60)));
-
   // Format seconds to mm:ss
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -362,55 +387,134 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // 5. Intelligent Sentence-by-Sentence Comparison: Actual vs Spoken
+  // 5. Authentic Alignment: Match Real Spoken Words against Actual Sentences
   const sentenceComparisons = useMemo<SentenceComparison[]>(() => {
-    const spokenTokens = spokenTranscript
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
+    const rawSpokenTokens = spokenTranscript
+      .trim()
       .split(/\s+/)
       .filter(Boolean);
 
-    // If spokenTranscript is present, distribute or match against each sentence
-    const spokenSentencesList = spokenTranscript
-      ? spokenTranscript.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean)
-      : [];
+    if (rawSpokenTokens.length === 0) {
+      // Nothing was spoken yet in this recording
+      return sentences.map((sent) => {
+        const rawWords = sent.split(/\s+/).filter(Boolean);
+        return {
+          actual: sent,
+          actualWordTokens: rawWords.map((w) => ({ word: w, isSpoken: false })),
+          spokenWords: [],
+          spokenText: '',
+          isSpoken: false,
+          matchScore: 0
+        };
+      });
+    }
 
-    return sentences.map((actualSentence, idx) => {
-      const actualWords = actualSentence
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .split(/\s+/)
-        .filter(Boolean);
+    // Greedily distribute actual spoken words across the sentences in sequence
+    let currentSpokenIdx = 0;
 
-      // Find spoken match
-      const assignedSpoken = spokenSentencesList[idx] || (spokenTranscript ? spokenTranscript : '');
+    return sentences.map((actualSent) => {
+      const rawActualWords = actualSent.split(/\s+/).filter(Boolean);
+      const normActualWords = rawActualWords.map((w) =>
+        w.toLowerCase().replace(/[^a-z0-9]/g, '')
+      );
 
-      let matchedCount = 0;
-      const matchedWords = actualWords.map((word) => {
-        const isMatched = spokenTokens.includes(word);
-        if (isMatched) matchedCount++;
-        return { word, isMatched };
+      // If we ran out of spoken words, this sentence wasn't reached yet
+      if (currentSpokenIdx >= rawSpokenTokens.length) {
+        return {
+          actual: actualSent,
+          actualWordTokens: rawActualWords.map((w) => ({ word: w, isSpoken: false })),
+          spokenWords: [],
+          spokenText: '',
+          isSpoken: false,
+          matchScore: 0
+        };
+      }
+
+      const assignedTokens: string[] = [];
+
+      while (currentSpokenIdx < rawSpokenTokens.length) {
+        const token = rawSpokenTokens[currentSpokenIdx];
+        const normToken = token.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        const matchesCurrent = normActualWords.includes(normToken);
+
+        if (matchesCurrent) {
+          assignedTokens.push(token);
+          currentSpokenIdx++;
+          // If we matched up to the length of this sentence, stop
+          if (assignedTokens.length >= rawActualWords.length + 3) {
+            break;
+          }
+        } else {
+          // Token doesn't directly match. It could be an extra word or mispronunciation
+          // Check if it belongs to this sentence or next sentence
+          if (assignedTokens.length === 0) {
+            // Include first spoken tokens for this sentence
+            assignedTokens.push(token);
+            currentSpokenIdx++;
+          } else {
+            // Already started this sentence, check if it's extra word or belongs further
+            if (assignedTokens.length < normActualWords.length) {
+              assignedTokens.push(token);
+              currentSpokenIdx++;
+            } else {
+              break;
+            }
+          }
+        }
+      }
+
+      const isSpoken = assignedTokens.length > 0;
+      const spokenWords = assignedTokens.map((word) => {
+        const norm = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const isMatch = normActualWords.includes(norm);
+        return { word, isMatch };
       });
 
+      const matchedCount = spokenWords.filter((w) => w.isMatch).length;
       const matchScore =
-        actualWords.length > 0
-          ? Math.min(100, Math.round((matchedCount / actualWords.length) * 100))
-          : 100;
+        normActualWords.length > 0
+          ? Math.min(100, Math.round((matchedCount / normActualWords.length) * 100))
+          : 0;
+
+      const actualWordTokens = rawActualWords.map((raw) => {
+        const norm = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const wasSpoken = assignedTokens.some(
+          (t) => t.toLowerCase().replace(/[^a-z0-9]/g, '') === norm
+        );
+        return { word: raw, isSpoken: wasSpoken };
+      });
 
       return {
-        actual: actualSentence,
-        spoken: assignedSpoken || (spokenTranscript ? 'Spoken in recording' : 'Captured via video recording'),
-        matchScore: spokenTranscript ? matchScore : 90 + (idx % 10),
-        matchedWords
+        actual: actualSent,
+        actualWordTokens,
+        spokenWords,
+        spokenText: assignedTokens.join(' '),
+        isSpoken,
+        matchScore
       };
     });
   }, [sentences, spokenTranscript]);
 
-  // Overall accuracy score
+  // Real Count of Words Spoken in Video
+  const actualSpokenWordsCount = useMemo(() => {
+    const tokens = spokenTranscript.trim().split(/\s+/).filter(Boolean);
+    return tokens.length;
+  }, [spokenTranscript]);
+
+  // Real Calculated Reading Pace (WPM based on ACTUAL spoken words, not the entire 160-word passage!)
+  const recordedWpm = useMemo(() => {
+    if (actualSpokenWordsCount === 0 || recordingSeconds === 0) return 0;
+    const mins = Math.max(0.08, recordingSeconds / 60);
+    return Math.round(actualSpokenWordsCount / mins);
+  }, [actualSpokenWordsCount, recordingSeconds]);
+
+  // Overall Accuracy of Spoken Sentences
   const overallAccuracy = useMemo(() => {
-    if (sentenceComparisons.length === 0) return 92;
-    const sum = sentenceComparisons.reduce((acc, c) => acc + c.matchScore, 0);
-    return Math.round(sum / sentenceComparisons.length);
+    const spokenSentences = sentenceComparisons.filter((s) => s.isSpoken);
+    if (spokenSentences.length === 0) return 0;
+    const sum = spokenSentences.reduce((acc, c) => acc + c.matchScore, 0);
+    return Math.round(sum / spokenSentences.length);
   }, [sentenceComparisons]);
 
   if (!isOpen) return null;
@@ -423,7 +527,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
           position: 'fixed',
           bottom: '24px',
           right: '24px',
-          width: isMinimized ? '200px' : '320px',
+          width: isMinimized ? '200px' : '330px',
           background: 'var(--color-surface-elevated, #18181b)',
           border: isRecording ? '2px solid #ef4444' : '1px solid var(--color-border)',
           borderRadius: 'var(--radius-lg, 16px)',
@@ -469,7 +573,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Video size={13} color="var(--color-primary, #0ea5e9)" />
                 <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-secondary, #94a3b8)' }}>
-                  Camera Mirror
+                  Camera Practice Mirror
                 </span>
               </div>
             )}
@@ -534,7 +638,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
           style={{
             position: 'relative',
             width: '100%',
-            height: isMinimized ? '112px' : '180px',
+            height: isMinimized ? '112px' : '185px',
             background: '#09090b',
             display: 'flex',
             alignItems: 'center',
@@ -658,6 +762,31 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
           >
             Sentence {currentSentenceIndex + 1}/{totalSentences}
           </div>
+
+          {/* LIVE Speech Subtitle Banner (Proves mic is actually listening!) */}
+          {isRecording && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '32px',
+                left: '10px',
+                right: '10px',
+                background: 'rgba(0, 0, 0, 0.75)',
+                color: '#f8fafc',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                backdropFilter: 'blur(4px)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                borderLeft: '2px solid #10b981'
+              }}
+            >
+              {spokenTranscript ? `🎙️ ${spokenTranscript}` : '🎙️ Speak sentence into mic...'}
+            </div>
+          )}
         </div>
 
         {/* Video & Mic Control Buttons */}
@@ -765,13 +894,13 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
         </div>
       </div>
 
-      {/* 5. Comprehensive Video Playback & "What's Actual vs What I Speak" Sentence Review Studio */}
+      {/* 5. Authentic Video Review Studio: Real Voice Match */}
       {showReviewModal && recordedVideoUrl && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.82)',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',
@@ -785,7 +914,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
               background: 'var(--color-surface, #0f172a)',
               border: '1px solid var(--color-border, #334155)',
               borderRadius: '24px',
-              maxWidth: '1120px',
+              maxWidth: '1140px',
               width: '100%',
               maxHeight: '92vh',
               overflow: 'hidden',
@@ -803,7 +932,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                 justifyContent: 'space-between',
                 padding: '16px 24px',
                 borderBottom: '1px solid var(--color-border-subtle, #334155)',
-                background: 'rgba(15, 23, 42, 0.75)',
+                background: 'rgba(15, 23, 42, 0.85)',
                 backdropFilter: 'blur(8px)'
               }}
             >
@@ -835,29 +964,48 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                     Your Reading Video & Speech Comparison Studio
                   </h3>
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #94a3b8)' }}>
-                    Check your recorded video against what was actual in the passage vs what you spoke with your voice
+                    Watch your recorded video on the left and see what words you actually spoke matched against the passage on the right
                   </span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-pill)',
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    color: '#10b981',
-                    fontSize: '0.75rem',
-                    fontWeight: 700
-                  }}
-                >
-                  <CheckCircle2 size={13} />
-                  <span>{overallAccuracy}% Voice Match</span>
-                </div>
+                {overallAccuracy > 0 ? (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-pill)',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      color: '#10b981',
+                      fontSize: '0.75rem',
+                      fontWeight: 700
+                    }}
+                  >
+                    <CheckCircle2 size={13} />
+                    <span>{overallAccuracy}% Voice Accuracy</span>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-pill)',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171',
+                      fontSize: '0.75rem',
+                      fontWeight: 700
+                    }}
+                  >
+                    <span>In Progress</span>
+                  </div>
+                )}
 
                 <button
                   onClick={() => setShowReviewModal(false)}
@@ -877,7 +1025,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
               </div>
             </div>
 
-            {/* Modal Body: Split Screen Studio */}
+            {/* Modal Body: Split Screen Comparison */}
             <div
               style={{
                 display: 'grid',
@@ -888,7 +1036,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
               }}
               className="review-split-grid"
             >
-              {/* Left Column: Video Playback & Stats */}
+              {/* Left Column: Video Playback & Real Stats */}
               <div
                 style={{
                   display: 'flex',
@@ -899,7 +1047,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                   padding: '20px'
                 }}
               >
-                {/* Video Player */}
+                {/* Video Player with Audio */}
                 <div
                   style={{
                     borderRadius: '14px',
@@ -924,7 +1072,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                   />
                 </div>
 
-                {/* Metrics Summary Grid */}
+                {/* Real Metrics Summary Grid */}
                 <div
                   style={{
                     display: 'grid',
@@ -949,16 +1097,16 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
 
                   <div>
                     <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted, #94a3b8)', textTransform: 'uppercase' }}>
-                      Words
+                      Words Spoken
                     </span>
                     <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary, #0ea5e9)', marginTop: '2px' }}>
-                      {totalWords}
+                      {actualSpokenWordsCount} <span style={{ fontSize: '0.6875rem', color: '#64748b' }}>/ {totalWords}</span>
                     </div>
                   </div>
 
                   <div>
                     <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted, #94a3b8)', textTransform: 'uppercase' }}>
-                      Pace
+                      Reading Pace
                     </span>
                     <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>
                       {recordedWpm} <span style={{ fontSize: '0.6875rem', fontWeight: 600 }}>WPM</span>
@@ -966,26 +1114,35 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                   </div>
                 </div>
 
-                {/* Fluency Coaching Tip */}
+                {/* Real Microphone Transcript Banner */}
                 <div
                   style={{
                     marginTop: '14px',
-                    fontSize: '0.8125rem',
-                    color: 'var(--color-text-secondary, #94a3b8)',
-                    background: 'rgba(14, 165, 233, 0.08)',
-                    border: '1px solid rgba(14, 165, 233, 0.2)',
-                    borderRadius: '10px',
                     padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '10px',
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '10px',
-                    lineHeight: 1.5
+                    flexDirection: 'column',
+                    gap: '6px'
                   }}
                 >
-                  <Sparkles size={16} color="#0ea5e9" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span>
-                    Watch your mouth shape and eye contact on the left while checking the exact sentences and spoken words on the right!
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <MessageSquareQuote size={14} color="#0ea5e9" />
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                      Full Voice Transcript from Video:
+                    </span>
+                  </div>
+
+                  {spokenTranscript ? (
+                    <p style={{ margin: 0, fontSize: '0.8125rem', color: '#e2e8f0', lineHeight: 1.5, fontStyle: 'italic' }}>
+                      "{spokenTranscript}"
+                    </p>
+                  ) : (
+                    <span style={{ fontSize: '0.75rem', color: '#f87171', fontStyle: 'italic' }}>
+                      No words were picked up by the microphone in this {recordingSeconds}s recording. Make sure your microphone is unmuted and speak clearly!
+                    </span>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -1040,7 +1197,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                 </div>
               </div>
 
-              {/* Right Column: Interactive Sentence Comparison (What's Actual vs What I Speak) */}
+              {/* Right Column: Sentence-by-Sentence Real Voice Matching */}
               <div
                 style={{
                   display: 'flex',
@@ -1070,7 +1227,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                   </div>
 
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #94a3b8)', fontWeight: 600 }}>
-                    {sentences.length} Sentences in Story
+                    {sentences.length} Sentences in Passage
                   </span>
                 </div>
 
@@ -1084,18 +1241,21 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                         key={idx}
                         style={{
                           background: 'var(--color-bg-subtle, #1e293b)',
-                          border: '1px solid var(--color-border, #334155)',
+                          border: item.isSpoken
+                            ? '1px solid rgba(16, 185, 129, 0.35)'
+                            : '1px solid var(--color-border, #334155)',
                           borderRadius: '12px',
                           padding: '14px 16px',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '10px',
-                          transition: 'border-color 0.2s ease'
+                          opacity: item.isSpoken ? 1.0 : 0.68,
+                          transition: 'all 0.2s ease'
                         }}
                       >
-                        {/* Sentence Header + Listen Button */}
+                        {/* Sentence Header + Match Badge + Audio Button */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span
                               style={{
                                 fontSize: '0.6875rem',
@@ -1109,9 +1269,30 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                               Sentence {idx + 1}
                             </span>
 
-                            <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#10b981' }}>
-                              {item.matchScore}% Match
-                            </span>
+                            {item.isSpoken ? (
+                              <span
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 700,
+                                  color: item.matchScore >= 70 ? '#10b981' : '#f59e0b'
+                                }}
+                              >
+                                {item.matchScore}% Spoken Accuracy
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 600,
+                                  color: '#64748b',
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px'
+                                }}
+                              >
+                                Not Spoken in this {formatTime(recordingSeconds)} video
+                              </span>
+                            )}
                           </div>
 
                           <button
@@ -1136,8 +1317,8 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                           </button>
                         </div>
 
-                        {/* 1. What's Actual (Original story sentence) */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {/* 1. What's Actual (Original Story Sentence) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span
                             style={{
                               fontSize: '0.625rem',
@@ -1158,11 +1339,23 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                               lineHeight: 1.55
                             }}
                           >
-                            {item.actual}
+                            {item.actualWordTokens.map((token, wIdx) => (
+                              <span
+                                key={wIdx}
+                                style={{
+                                  display: 'inline-block',
+                                  marginRight: '4px',
+                                  color: token.isSpoken ? '#34d399' : '#e2e8f0',
+                                  textDecoration: token.isSpoken ? 'none' : 'none'
+                                }}
+                              >
+                                {token.word}
+                              </span>
+                            ))}
                           </p>
                         </div>
 
-                        {/* 2. What I Speak (Spoken Voice Recognition) */}
+                        {/* 2. What I Speak (REAL User Voice Spoken in Video) */}
                         <div
                           style={{
                             display: 'flex',
@@ -1170,8 +1363,8 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                             gap: '4px',
                             padding: '8px 12px',
                             borderRadius: '8px',
-                            background: 'rgba(0, 0, 0, 0.25)',
-                            borderLeft: '3px solid #10b981'
+                            background: item.isSpoken ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.02)',
+                            borderLeft: item.isSpoken ? '3px solid #10b981' : '3px solid #64748b'
                           }}
                         >
                           <span
@@ -1180,39 +1373,47 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                               fontWeight: 800,
                               textTransform: 'uppercase',
                               letterSpacing: '0.06em',
-                              color: '#10b981'
+                              color: item.isSpoken ? '#10b981' : '#64748b'
                             }}
                           >
                             What You Spoke with Voice:
                           </span>
 
-                          <div
-                            style={{
-                              fontSize: '0.875rem',
-                              fontWeight: 500,
-                              color: '#e2e8f0',
-                              lineHeight: 1.5
-                            }}
-                          >
-                            {item.matchedWords && item.matchedWords.length > 0 ? (
-                              item.matchedWords.map((token, wIdx) => (
+                          {item.isSpoken ? (
+                            <div
+                              style={{
+                                fontSize: '0.875rem',
+                                fontWeight: 600,
+                                color: '#e2e8f0',
+                                lineHeight: 1.5
+                              }}
+                            >
+                              {item.spokenWords.map((token, wIdx) => (
                                 <span
                                   key={wIdx}
                                   style={{
                                     display: 'inline-block',
                                     marginRight: '4px',
-                                    color: token.isMatched ? '#34d399' : '#f59e0b',
-                                    fontWeight: token.isMatched ? 600 : 500
+                                    color: token.isMatch ? '#34d399' : '#fbbf24',
+                                    fontWeight: token.isMatch ? 700 : 500
                                   }}
-                                  title={token.isMatched ? 'Matched spoken word' : 'Verify articulation'}
+                                  title={token.isMatch ? 'Matched passage word' : 'Extra or unverified pronunciation word'}
                                 >
                                   {token.word}
                                 </span>
-                              ))
-                            ) : (
-                              <span>{item.spoken}</span>
-                            )}
-                          </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                fontSize: '0.8125rem',
+                                color: '#64748b',
+                                fontStyle: 'italic'
+                              }}
+                            >
+                              (You stopped recording at {formatTime(recordingSeconds)} before reading this sentence)
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
