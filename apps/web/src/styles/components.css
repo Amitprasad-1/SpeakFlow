@@ -172,7 +172,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 64px;
+  height: 58px;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -180,31 +180,68 @@
   z-index: 50;
   justify-content: space-around;
   align-items: center;
-  padding: 0 var(--space-2);
+  padding: 0 4px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .bottom-nav-item {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   color: var(--color-text-muted);
-  font-size: var(--text-caption);
+  font-size: 0.6875rem;
   font-weight: 500;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-md);
-  min-height: var(--min-touch-target);
+  padding: 4px 1px;
+  border-radius: var(--radius-sm);
+  min-height: 48px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
   transition: color var(--motion-duration-fast) ease;
+}
+
+.bottom-nav-item span {
+  font-size: 0.65rem;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bottom-nav-item.active {
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .mobile-logo-wrapper {
   display: none;
+}
+
+.desktop-date-text {
+  display: inline;
+}
+
+.mobile-date-text {
+  display: none;
+}
+
+.reading-btn-label-desktop {
+  display: inline;
+}
+
+.reading-btn-label-mobile {
+  display: none;
+}
+
+/* Reading player toolbar responsive styles */
+.reading-player-toolbar {
+  border-radius: var(--radius-pill);
 }
 
 @media (max-width: 767px) {
@@ -215,10 +252,49 @@
     display: flex;
   }
   .top-header {
-    padding: 0 var(--space-4);
+    height: 56px;
+    padding: 0 var(--space-3);
   }
   .mobile-logo-wrapper {
     display: flex !important;
+  }
+  .header-section-title {
+    display: none !important;
+  }
+  .desktop-date-text {
+    display: none !important;
+  }
+  .mobile-date-text {
+    display: inline !important;
+  }
+  .header-install-btn {
+    display: none !important;
+  }
+  .reading-btn-label-desktop {
+    display: none !important;
+  }
+  .reading-btn-label-mobile {
+    display: inline !important;
+  }
+  .reading-player-toolbar {
+    border-radius: 18px !important;
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+  .reading-player-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+  .reading-player-row-primary {
+    justify-content: space-between !important;
+  }
+  .reading-player-row-secondary {
+    justify-content: space-between !important;
+    padding-top: 4px;
+    border-top: 1px solid var(--color-border-subtle);
   }
 }
 

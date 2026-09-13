@@ -416,6 +416,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
       {/* 2. Automated Action Toolbar */}
       <div
+        className="reading-player-toolbar"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -425,7 +426,6 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           padding: '10px 18px',
           background: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-pill)',
           boxShadow: isAutomatedRunning
             ? '0 6px 24px rgba(16, 185, 129, 0.25)'
             : '0 4px 16px rgba(0, 0, 0, 0.05)',
@@ -436,15 +436,15 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           transition: 'all 0.25s ease'
         }}
       >
-        {/* Left: Main Automated Read Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Left / Row 1: Main Automated Read Button + Voice + Speed */}
+        <div className="reading-player-row reading-player-row-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={toggleAutomatedReading}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '9px 20px',
+              gap: '6px',
+              padding: '8px 16px',
               borderRadius: 'var(--radius-pill)',
               border: 'none',
               background: isAutomatedRunning
@@ -452,16 +452,18 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: '#ffffff',
               fontWeight: 800,
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               cursor: 'pointer',
               boxShadow: isAutomatedRunning
                 ? '0 0 16px rgba(239, 68, 68, 0.4)'
                 : '0 0 16px rgba(16, 185, 129, 0.35)',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
             }}
           >
-            {isAutomatedRunning ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
-            <span>{isAutomatedRunning ? 'Pause Reading' : 'Start Auto Reading'}</span>
+            {isAutomatedRunning ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
+            <span className="reading-btn-label-desktop">{isAutomatedRunning ? 'Pause Reading' : 'Start Auto Reading'}</span>
+            <span className="reading-btn-label-mobile">{isAutomatedRunning ? 'Pause' : 'Auto Read'}</span>
           </button>
 
           {/* Voice Audio Toggle */}
@@ -472,7 +474,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '6px 12px',
+              padding: '6px 10px',
               borderRadius: 'var(--radius-pill)',
               border: '1px solid var(--color-border)',
               background: voiceEnabled ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
@@ -480,7 +482,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               fontSize: '0.75rem',
               fontWeight: 700,
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap'
             }}
           >
             {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
@@ -494,7 +497,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 key={wpm}
                 onClick={() => setPacerSpeed(wpm)}
                 style={{
-                  padding: '3px 8px',
+                  padding: '3px 7px',
                   borderRadius: 'var(--radius-pill)',
                   border: 'none',
                   background: pacerSpeed === wpm ? 'var(--color-primary)' : 'transparent',
@@ -508,14 +511,14 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 {wpm}
               </button>
             ))}
-            <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', paddingRight: '4px' }}>
+            <span className="reading-btn-label-desktop" style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-muted)', paddingRight: '4px' }}>
               WPM
             </span>
           </div>
         </div>
 
-        {/* Center/Right: Sentence Stepper & Mic */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Center/Right / Row 2: Sentence Stepper & Mic & Video */}
+        <div className="reading-player-row reading-player-row-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Stepper */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
@@ -538,7 +541,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               <ChevronLeft size={14} />
             </button>
 
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)', minWidth: '75px', textAlign: 'center' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)', minWidth: '65px', textAlign: 'center' }}>
               {activeSentenceIndex + 1} of {sentences.length}
             </span>
 
@@ -569,19 +572,21 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '6px 14px',
+              gap: '4px',
+              padding: '6px 12px',
               borderRadius: 'var(--radius-pill)',
               border: '1px solid var(--color-border)',
               background: isRecording ? 'rgba(239, 68, 68, 0.15)' : 'var(--color-surface)',
               color: isRecording ? '#ef4444' : 'var(--color-text-primary)',
               fontWeight: 700,
               fontSize: '0.75rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             {isRecording ? <MicOff size={14} /> : <Mic size={14} />}
-            <span>{isRecording ? `${readingSeconds}s` : 'Practice Mic'}</span>
+            <span className="reading-btn-label-desktop">{isRecording ? `${readingSeconds}s` : 'Practice Mic'}</span>
+            <span className="reading-btn-label-mobile">{isRecording ? `${readingSeconds}s` : 'Mic'}</span>
           </button>
 
           {/* Record Video with Camera & Voice */}
@@ -590,8 +595,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
+              gap: '5px',
+              padding: '6px 12px',
               borderRadius: 'var(--radius-pill)',
               border: isVideoRecorderOpen ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
               background: isVideoRecorderOpen ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
@@ -600,12 +605,14 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               fontSize: '0.75rem',
               cursor: 'pointer',
               boxShadow: isVideoRecorderOpen ? '0 0 12px rgba(14, 165, 233, 0.25)' : 'none',
-              transition: 'all 0.15s ease'
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap'
             }}
             title="Record video & voice practice with webcam"
           >
             <Video size={14} color={isVideoRecorderOpen ? 'var(--color-primary)' : 'currentColor'} />
-            <span>{isVideoRecorderOpen ? 'Camera Live' : 'Record Video'}</span>
+            <span className="reading-btn-label-desktop">{isVideoRecorderOpen ? 'Camera Live' : 'Record Video'}</span>
+            <span className="reading-btn-label-mobile">{isVideoRecorderOpen ? 'Live' : 'Video'}</span>
           </button>
         </div>
       </div>

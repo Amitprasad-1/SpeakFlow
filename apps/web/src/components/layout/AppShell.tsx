@@ -68,13 +68,24 @@ export const AppShell: React.FC<AppShellProps> = ({
     if (diffDays === -1) return `Yesterday · ${dateShort}`;
     return dateShort;
   }, [currentDate, todayStr]);
-  const primaryNavItems: { id: AppNavTab; label: string; icon: any }[] = [
-    { id: 'reading', label: '200-Word Reading', icon: BookOpen },
-    { id: 'twisters', label: 'Tongue Twisters', icon: Zap },
-    { id: 'grammar', label: 'Words & Grammar', icon: Sparkles },
-    { id: 'phrases', label: 'Daily Phrases (हिंदी)', icon: Languages },
-    { id: 'conversation', label: 'AI Coach', icon: MessageSquare },
-    { id: 'profile', label: 'Profile & Settings', icon: User }
+
+  const formattedShortDate = React.useMemo(() => {
+    const active = currentDate ? new Date(`${currentDate}T00:00:00`) : new Date();
+    const today = new Date(`${todayStr}T00:00:00`);
+    const diffDays = Math.round((active.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    return active.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }, [currentDate, todayStr]);
+
+  const primaryNavItems: { id: AppNavTab; label: string; mobileLabel: string; icon: any }[] = [
+    { id: 'reading', label: '200-Word Reading', mobileLabel: 'Reading', icon: BookOpen },
+    { id: 'twisters', label: 'Tongue Twisters', mobileLabel: 'Twisters', icon: Zap },
+    { id: 'grammar', label: 'Words & Grammar', mobileLabel: 'Grammar', icon: Sparkles },
+    { id: 'phrases', label: 'Daily Phrases (हिंदी)', mobileLabel: 'Phrases', icon: Languages },
+    { id: 'conversation', label: 'AI Coach', mobileLabel: 'AI Coach', icon: MessageSquare },
+    { id: 'profile', label: 'Profile & Settings', mobileLabel: 'Profile', icon: User }
   ];
 
   const [isSidebarHovered, setIsSidebarHovered] = React.useState(false);
@@ -183,15 +194,17 @@ export const AppShell: React.FC<AppShellProps> = ({
               <BrandLogo size="sm" showTagline={false} />
             </div>
 
-            {/* Section title */}
+            {/* Section title (Desktop only, hidden on mobile) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <h2 className="typography-h3">
+              <h2 className="typography-h3 header-section-title">
                 {activeTab === 'reading'
                   ? 'Daily 200-Word Reading'
                   : activeTab === 'twisters'
                   ? 'Tongue Twisters'
                   : activeTab === 'grammar'
                   ? 'Words & Grammar Lab'
+                  : activeTab === 'phrases'
+                  ? 'Daily Phrases (हिंदी)'
                   : activeTab === 'conversation'
                   ? 'Conversational AI Coach'
                   : activeTab === 'profile'
@@ -249,7 +262,8 @@ export const AppShell: React.FC<AppShellProps> = ({
                 }}
               >
                 <Calendar size={13} />
-                <span>{formattedDateLabel}</span>
+                <span className="desktop-date-text">{formattedDateLabel}</span>
+                <span className="mobile-date-text">{formattedShortDate}</span>
               </div>
 
               <button
@@ -298,7 +312,9 @@ export const AppShell: React.FC<AppShellProps> = ({
               )}
             </div>
 
-            <InstallAppButton />
+            <div className="header-install-btn">
+              <InstallAppButton />
+            </div>
             <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="compact" />
           </div>
         </header>
@@ -321,20 +337,11 @@ export const AppShell: React.FC<AppShellProps> = ({
                 id={`mobile-nav-${item.id}`}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <Icon size={20} />
-                <span>{item.label}</span>
+                <Icon size={19} />
+                <span>{item.mobileLabel}</span>
               </button>
             );
           })}
-          {/* Mobile Design System Tab */}
-          <button
-            className={`bottom-nav-item ${activeTab === 'design-system' ? 'active' : ''}`}
-            onClick={() => onTabChange('design-system')}
-            id="mobile-nav-design-system"
-          >
-            <Layers size={20} />
-            <span>UI Kit</span>
-          </button>
         </nav>
       </div>
     </div>
