@@ -53,7 +53,12 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   // Automated reading state
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number>(0);
   const [isAutomatedRunning, setIsAutomatedRunning] = useState<boolean>(false);
-  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('speakflow_reading_voice_enabled') === 'true';
+    }
+    return false;
+  });
   const [pacerSpeed, setPacerSpeed] = useState<120 | 150 | 180 | 210>(150);
   const [sentenceProgress, setSentenceProgress] = useState<number>(0);
 
@@ -415,10 +420,18 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             <span>{isAutomatedRunning ? 'Pause Reading' : 'Start Auto Reading'}</span>
           </button>
 
-          {/* Voice Audio Toggle */}
+          {/* Voice Audio Toggle (Turned OFF by default) */}
           <button
-            onClick={() => setVoiceEnabled(prev => !prev)}
-            title={voiceEnabled ? 'Voice audio ON (Click to mute)' : 'Voice audio MUTED (Click to enable voice)'}
+            onClick={() => {
+              setVoiceEnabled(prev => {
+                const next = !prev;
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('speakflow_reading_voice_enabled', String(next));
+                }
+                return next;
+              });
+            }}
+            title={voiceEnabled ? 'Voice audio ON (Click to turn OFF)' : 'Voice audio OFF (Click to turn ON)'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
