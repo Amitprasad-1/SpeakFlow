@@ -4,10 +4,12 @@ import {
   ConversationMode,
   ConversationSession,
   ConversationEngine,
+  ConversationMessage,
   PostConversationReview
 } from '@speakflow/core';
 import { BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
 import { BrowserStorage } from '../../storage/BrowserStorage';
+import { GeminiAIService } from '../../services/GeminiAIService';
 import {
   MessageSquare,
   Briefcase,
@@ -18,6 +20,8 @@ import {
   RotateCcw,
   CheckCircle2,
   ArrowRight,
+  Send,
+  Zap,
   Info
 } from 'lucide-react';
 import { VoiceWaveVisualizer } from '../common/VoiceWaveVisualizer';
@@ -38,11 +42,18 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
   const [voiceState, setVoiceState] = useState<'ready' | 'listening' | 'processing' | 'result'>('ready');
   const [transcript, setTranscript] = useState('');
+  const [inputText, setInputText] = useState('');
   const [recordedDuration, setRecordedDuration] = useState(0);
   const [reviewReport, setReviewReport] = useState<PostConversationReview | null>(null);
   const [isSpeakingAi, setIsSpeakingAi] = useState(false);
+  const [isAiConfigured, setIsAiConfigured] = useState(() => GeminiAIService.isConfigured());
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check Gemini configuration on mount
+  useEffect(() => {
+    setIsAiConfigured(GeminiAIService.isConfigured());
+  }, []);
 
   // Auto-scroll chat to latest message
   useEffect(() => {
@@ -60,9 +71,86 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     setSelectedMode(mode);
     setReviewReport(null);
     setTranscript('');
+    setInputText('');
     setVoiceState('ready');
     const newSession = ConversationEngine.startSession(mode);
     setSession(newSession);
+  };
+
+  const handleSendTurn = async (rawText: string) => {
+    const textToSubmit = rawText.trim();
+    if (!textToSubmit) return;
+
+    setVoiceState('processing');
+    setInputText('');
+    setTranscript('');
+    setRecordedDuration(0);
+
+    // 1. Append user message to conversation
+    const userMsg: ConversationMessage = {
+      id: `msg_user_${Date.now()}`,
+      sender: 'user',
+      text: textToSubmit,
+      timestamp: new Date().toISOString()
+    };
+
+    const sessionWithUser: ConversationSession = {
+      ...session,
+      messages: [...session.messages, userMsg]
+    };
+    setSession(sessionWithUser);
+
+    try {
+      // 2. Query Gemini 1.5 Flash (with automatic fallback to offline heuristic)
+      const coachResponse = await GeminiAIService.generateConversationReply({
+        userMessage: textToSubmit,
+        mode: session.mode,
+        scenarioTitle: session.scenario.title,
+        history: sessionWithUser.messages.map(m => ({ sender: m.sender, text: m.text }))
+      });
+
+      // 3. Append AI Coach response
+      const aiMsg: ConversationMessage = {
+        id: `msg_ai_${Date.now()}`,
+        sender: 'ai',
+        text: coachResponse.replyText,
+        timestamp: new Date().toISOString(),
+        feedback: coachResponse.suggestedPhrasing ? {
+          naturalAlternative: coachResponse.suggestedPhrasing
+        } : undefined
+      };
+
+      const updatedSession: ConversationSession = {
+        ...sessionWithUser,
+        messages: [...sessionWithUser.messages, aiMsg]
+      };
+
+      setSession(updatedSession);
+      setVoiceState('ready');
+
+      // 4. Speak AI response via speech synthesis
+      setIsSpeakingAi(true);
+      speechProvider.synthesizeSpeech(aiMsg.text, { rate: 1.0 }).finally(() => {
+        setIsSpeakingAi(false);
+      });
+
+      // 5. Trigger review report when turn threshold is reached
+      const userTurns = updatedSession.messages.filter(m => m.sender === 'user').length;
+      if (userTurns >= 3) {
+        const report = ConversationEngine.generateReviewReport(updatedSession);
+        setReviewReport(report);
+        BrowserStorage.saveConversation({ ...updatedSession, isCompleted: true, review: report });
+      }
+    } catch (err) {
+      console.warn('Fallback to local conversation processing:', err);
+      const { updatedSession, replyMessage } = ConversationEngine.processUserTurn(session, textToSubmit);
+      setSession(updatedSession);
+      setVoiceState('ready');
+      setIsSpeakingAi(true);
+      speechProvider.synthesizeSpeech(replyMessage.text, { rate: 1.0 }).finally(() => {
+        setIsSpeakingAi(false);
+      });
+    }
   };
 
   const handleToggleVoice = () => {
@@ -77,32 +165,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       });
     } else if (voiceState === 'listening') {
       speechProvider.stopRealtimeRecognition();
-      setVoiceState('processing');
-
-      // Process user turn with small delay for realism
-      setTimeout(() => {
-        const textToSubmit = transcript.trim() || "Yes, I understand and agree with that approach.";
-        const { updatedSession, replyMessage } = ConversationEngine.processUserTurn(session, textToSubmit);
-
-        setSession(updatedSession);
-        setVoiceState('ready');
-        setTranscript('');
-        setRecordedDuration(0);
-
-        // Speak AI partner reply naturally
-        setIsSpeakingAi(true);
-        speechProvider.synthesizeSpeech(replyMessage.text, { rate: 1.0 }).finally(() => {
-          setIsSpeakingAi(false);
-        });
-
-        // If turn count reaches 4, trigger review
-        const userTurns = updatedSession.messages.filter(m => m.sender === 'user').length;
-        if (userTurns >= 3) {
-          const report = ConversationEngine.generateReviewReport(updatedSession);
-          setReviewReport(report);
-          BrowserStorage.saveConversation({ ...updatedSession, isCompleted: true, review: report });
-        }
-      }, 1000);
+      const textToSubmit = transcript.trim() || "Yes, I understand and agree with that approach.";
+      handleSendTurn(textToSubmit);
     } else {
       setVoiceState('ready');
       setRecordedDuration(0);
@@ -134,9 +198,50 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: '820px', margin: '0 auto' }}>
       {/* Header */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
           <Badge variant="focus">Conversational Coach</Badge>
           <Badge variant="level">{session.scenario.title}</Badge>
+          <div style={{ marginLeft: 'auto' }}>
+            {isAiConfigured ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.25)'
+                }}
+                title="Powered by live Google Gemini 1.5 Flash LLM"
+              >
+                <Sparkles size={12} />
+                Gemini 1.5 Flash Active
+              </span>
+            ) : (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)'
+                }}
+                title="Local heuristic coaching active. Add your Gemini API key in Profile & Settings for live LLM conversations."
+              >
+                <Zap size={12} />
+                Offline AI Coach
+              </span>
+            )}
+          </div>
         </div>
         <h1 className="typography-h1">AI English Conversation Studio</h1>
         <p className="typography-body" style={{ marginTop: 'var(--space-1)', maxWidth: '65ch' }}>
@@ -192,7 +297,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         </div>
 
         {/* Message Stream */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-6)', maxHeight: '420px', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-4)', maxHeight: '420px', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
           {session.messages.map((msg) => {
             const isAi = msg.sender === 'ai';
             return (
@@ -240,8 +345,85 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               </div>
             );
           })}
+
+          {/* AI Thinking Bubble */}
+          {voiceState === 'processing' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xs)',
+                  background: 'var(--color-surface-hover)',
+                  color: 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)',
+                  fontSize: 'var(--text-body-sm)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Sparkles size={14} style={{ color: 'var(--color-primary)' }} />
+                <span>AI Coach is thinking...</span>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Text Reply Input Box */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (inputText.trim() && voiceState !== 'processing') {
+              handleSendTurn(inputText);
+            }
+          }}
+          style={{
+            display: 'flex',
+            gap: 'var(--space-2)',
+            alignItems: 'center',
+            marginBottom: 'var(--space-3)'
+          }}
+        >
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder={voiceState === 'listening' ? 'Listening to voice...' : 'Type your reply or use microphone below...'}
+            disabled={voiceState === 'listening' || voiceState === 'processing'}
+            style={{
+              flex: 1,
+              padding: 'var(--space-2-5) var(--space-4)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text-primary)',
+              fontSize: 'var(--text-body-sm)',
+              outline: 'none'
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!inputText.trim() || voiceState === 'processing'}
+            className="speakflow-btn btn-variant-primary"
+            style={{
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-2-5) var(--space-4)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: (!inputText.trim() || voiceState === 'processing') ? 0.5 : 1,
+              cursor: (!inputText.trim() || voiceState === 'processing') ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              fontSize: 'var(--text-body-sm)'
+            }}
+            title="Send reply"
+          >
+            <Send size={14} />
+            <span>Send</span>
+          </button>
+        </form>
 
         {/* Live Audio Visualizer */}
         <div style={{ marginBottom: 'var(--space-4)' }}>

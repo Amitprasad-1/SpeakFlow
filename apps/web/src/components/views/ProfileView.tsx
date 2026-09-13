@@ -11,6 +11,7 @@ import {
 } from '../../data/demoData';
 import { Shield, CheckCircle2, UserCheck, Clock, Flame, Award, Smartphone } from 'lucide-react';
 import { InstallAppButton } from '../common/InstallAppButton';
+import { AISettingsCard } from '../common/AISettingsCard';
 
 import { BrowserStorage } from '../../storage/BrowserStorage';
 
@@ -202,6 +203,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </Card>
       </div>
+
+      {/* Google Gemini AI Speech Coach Configuration */}
+      <AISettingsCard />
 
       {/* Standalone Native App Installation */}
       <Card variant="elevated" padding="lg">
