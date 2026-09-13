@@ -129,7 +129,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
     }
   }, [phase, recordMode, mediaStream, attachStreamToVideo]);
 
-  // Setup camera & mic stream with flexible fallbacks
+  // Setup camera & mic stream with High Definition settings and flexible fallbacks
   const initializeMedia = async (mode: 'audio' | 'video'): Promise<MediaStream | null> => {
     try {
       stopMediaTracks();
@@ -137,31 +137,54 @@ export const ImpromptuSpeakingTab: React.FC = () => {
       let stream: MediaStream | null = null;
       if (mode === 'video') {
         try {
+          // Tier 1: True High Definition 1080p/720p 60/30fps with studio stereo audio
           stream = await navigator.mediaDevices.getUserMedia({
             audio: {
               echoCancellation: true,
               noiseSuppression: true,
-              autoGainControl: true
+              autoGainControl: true,
+              sampleRate: { ideal: 48000 },
+              sampleSize: { ideal: 16 },
+              channelCount: { ideal: 2 }
             },
             video: {
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+              width: { ideal: 1920, min: 1280 },
+              height: { ideal: 1080, min: 720 },
+              frameRate: { ideal: 30, max: 60 },
               facingMode: 'user'
             }
           });
         } catch (strictErr) {
-          console.warn('High-res webcam constraints failed, trying basic video constraints:', strictErr);
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: true
-          });
+          try {
+            // Tier 2: Standard 720p HD fallback
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              },
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+              }
+            });
+          } catch (midErr) {
+            console.warn('HD video constraints failed, using flexible basic fallback:', midErr);
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: true
+            });
+          }
         }
       } else {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            sampleRate: { ideal: 48000 },
+            sampleSize: { ideal: 16 }
           },
           video: false
         });
@@ -281,13 +304,31 @@ export const ImpromptuSpeakingTab: React.FC = () => {
       }
     });
 
-    // MediaRecorder setup
+    // High Definition MediaRecorder setup (2.5 Mbps 1080p/720p HD video & 128 kbps stereo audio)
     try {
-      const mimeType = recordMode === 'video'
-        ? (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm')
-        : 'audio/webm';
+      let mimeType = recordMode === 'video' ? 'video/webm' : 'audio/webm';
+      if (recordMode === 'video') {
+        const preferredMimes = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/mp4;codecs=avc1,mp4a',
+          'video/webm'
+        ];
+        mimeType = preferredMimes.find((m) => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+      }
 
-      const recorder = new MediaRecorder(activeStream, { mimeType });
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(activeStream, {
+          mimeType,
+          videoBitsPerSecond: recordMode === 'video' ? 2500000 : undefined, // 2.5 Mbps High Definition video
+          audioBitsPerSecond: 128000 // 128 kbps studio voice
+        });
+      } catch (optErr) {
+        console.warn('High-bitrate MediaRecorder failed, falling back to default:', optErr);
+        recorder = new MediaRecorder(activeStream, { mimeType });
+      }
+
       mediaRecorderRef.current = recorder;
 
       recorder.ondataavailable = (e) => {
@@ -1273,7 +1314,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     }}
                   />
                   <span>
-                    {mediaStream?.getVideoTracks()?.some(t => t.readyState === 'live') ? 'Camera Live' : 'Camera Reconnecting...'}
+                    {mediaStream?.getVideoTracks()?.some(t => t.readyState === 'live') ? 'HD Camera Live' : 'Camera Reconnecting...'}
                   </span>
                 </div>
 
@@ -1475,7 +1516,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
           ========================================================================= */}
       {phase === 'feedback' && report && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* 1. Score & Overview Card */}
+          {/* 1. Header Score & Overview Card */}
           <div
             style={{
               background: 'var(--color-surface)',
@@ -1567,13 +1608,13 @@ export const ImpromptuSpeakingTab: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {recordMode === 'video' ? <Video size={18} color="var(--color-primary)" /> : <Mic size={18} color="var(--color-primary)" />}
-                  <span>Replay Your Recorded {recordMode === 'video' ? 'Video' : 'Voice'}</span>
+                  <span>Replay Your Recorded HD {recordMode === 'video' ? 'Video' : 'Voice'}</span>
                 </h3>
 
                 {mediaBlob && (
                   <a
                     href={recordedMediaUrl}
-                    download={`SpeakFlow_Practice_${Date.now()}.${recordMode === 'video' ? 'webm' : 'webm'}`}
+                    download={`SpeakFlow_HD_Practice_${Date.now()}.${recordMode === 'video' ? 'webm' : 'webm'}`}
                     className="tap-interactive"
                     style={{
                       display: 'inline-flex',
@@ -1590,7 +1631,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     }}
                   >
                     <Download size={13} />
-                    <span>Download Recording</span>
+                    <span>Download HD Recording</span>
                   </a>
                 )}
               </div>
@@ -1601,10 +1642,11 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     background: '#000000',
                     borderRadius: 'var(--radius-xl)',
                     overflow: 'hidden',
-                    maxHeight: '400px',
+                    maxHeight: '420px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
                   }}
                 >
                   <video
@@ -1612,7 +1654,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     src={recordedMediaUrl}
                     controls
                     playsInline
-                    style={{ width: '100%', maxHeight: '400px' }}
+                    style={{ width: '100%', maxHeight: '420px', objectFit: 'contain', imageRendering: '-webkit-optimize-contrast' }}
                   />
                 </div>
               ) : (

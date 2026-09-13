@@ -24,11 +24,18 @@ html, body {
   background-size: cover;
   color: var(--color-text-primary);
   line-height: var(--text-body-lh);
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   transition: background-color var(--motion-duration-normal) var(--motion-ease-out),
               color var(--motion-duration-normal) var(--motion-ease-out);
+}
+
+/* High Definition Media & Video Contrast Optimization */
+video, img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 /* Reduced Motion Override for Accessibility */
