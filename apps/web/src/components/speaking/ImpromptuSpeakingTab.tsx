@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Mic,
   MicOff,
@@ -19,83 +19,26 @@ import {
   ArrowRight,
   HelpCircle,
   Award,
-  ChevronRight
+  ChevronRight,
+  Search,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Layers
 } from 'lucide-react';
 import { GeminiAIService, SpeechAnalysisReport } from '../../services/GeminiAIService';
-
-interface TopicItem {
-  id: string;
-  category: string;
-  topic: string;
-  guideQuestions: string[];
-}
-
-const CURATED_TOPICS: TopicItem[] = [
-  {
-    id: 't_ai',
-    category: 'Technology & AI',
-    topic: 'How Artificial Intelligence is Changing Our Daily Habits',
-    guideQuestions: [
-      'What is one AI tool you use daily?',
-      'Is AI making people more productive or more dependent?',
-      'How do you envision the next 5 years?'
-    ]
-  },
-  {
-    id: 't_career',
-    category: 'Career & Growth',
-    topic: 'The Most Important Lesson I Learned from a Difficult Mistake',
-    guideQuestions: [
-      'What was the situation or mistake?',
-      'How did you take ownership and fix it?',
-      'How has it shaped your approach to work today?'
-    ]
-  },
-  {
-    id: 't_remote',
-    category: 'Workplace Culture',
-    topic: 'Working from Home vs Working in an Office: Which is Better?',
-    guideQuestions: [
-      'What are the distinct advantages of each mode?',
-      'How does remote work impact collaboration and mental focus?',
-      'What is your ideal balance?'
-    ]
-  },
-  {
-    id: 't_travel',
-    category: 'Personal Life',
-    topic: 'A Memorable Place That Changed My Perspective on Life',
-    guideQuestions: [
-      'Where was this place and why did you go?',
-      'What happened that surprised or moved you?',
-      'What did you learn about people or culture?'
-    ]
-  },
-  {
-    id: 't_habit',
-    category: 'Self Improvement',
-    topic: 'One Daily Habit That Everyone Should Build for Success',
-    guideQuestions: [
-      'What is the habit and why is it powerful?',
-      'How does it compound over weeks and months?',
-      'What is the easiest way to start it without quitting?'
-    ]
-  },
-  {
-    id: 't_leadership',
-    category: 'Leadership & Opinions',
-    topic: 'What Makes a Truly Inspiring Leader in Modern Times?',
-    guideQuestions: [
-      'Is leadership about authority or empathy and listening?',
-      'Think of an inspiring leader you admire.',
-      'How should a leader handle criticism and pressure?'
-    ]
-  }
-];
+import { EXTENSIVE_SPEAKING_TOPICS, SPEAKING_CATEGORIES, SpeakingTopicItem } from '../../data/topicCatalog';
 
 export const ImpromptuSpeakingTab: React.FC = () => {
+  // Topic Catalog & Dynamic AI Generation
+  const [allSpeakingTopics, setAllSpeakingTopics] = useState<SpeakingTopicItem[]>(EXTENSIVE_SPEAKING_TOPICS);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isGeneratingAiTopics, setIsGeneratingAiTopics] = useState<boolean>(false);
+  const [isTopicListExpanded, setIsTopicListExpanded] = useState<boolean>(false);
+
   // Setup Stage
-  const [selectedTopic, setSelectedTopic] = useState<TopicItem>(CURATED_TOPICS[0]);
+  const [selectedTopic, setSelectedTopic] = useState<SpeakingTopicItem>(EXTENSIVE_SPEAKING_TOPICS[0]);
   const [customTopicInput, setCustomTopicInput] = useState<string>('');
   const [targetDuration, setTargetDuration] = useState<60 | 120 | 300>(60); // 1m, 2m, 5m
   const [prepDuration, setPrepDuration] = useState<15 | 20>(15); // 15s or 20s
@@ -387,12 +330,46 @@ export const ImpromptuSpeakingTab: React.FC = () => {
     setPhase('feedback');
   };
 
-  // Pick Random Topic
+  // Filtered Topics based on category and search
+  const filteredTopics = useMemo(() => {
+    return allSpeakingTopics.filter(item => {
+      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      if (!matchesCategory) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        item.topic.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.guideQuestions.some(g => g.toLowerCase().includes(q))
+      );
+    });
+  }, [allSpeakingTopics, selectedCategory, searchQuery]);
+
+  // Pick Random Topic from filtered set or all
   const handleRandomTopic = () => {
-    const others = CURATED_TOPICS.filter(t => t.id !== selectedTopic.id);
-    const random = others[Math.floor(Math.random() * others.length)] || CURATED_TOPICS[0];
+    const pool = filteredTopics.length > 0 ? filteredTopics : allSpeakingTopics;
+    const others = pool.filter(t => t.id !== selectedTopic.id);
+    const random = others[Math.floor(Math.random() * others.length)] || pool[0];
     setSelectedTopic(random);
     setCustomTopicInput('');
+  };
+
+  // Generate Fresh AI Topics on demand
+  const handleGenerateAiTopics = async () => {
+    if (isGeneratingAiTopics) return;
+    setIsGeneratingAiTopics(true);
+    try {
+      const newTopics = await GeminiAIService.generateDynamicSpeakingTopics(selectedCategory);
+      if (newTopics && newTopics.length > 0) {
+        setAllSpeakingTopics(prev => [...newTopics, ...prev]);
+        setSelectedTopic(newTopics[0]);
+        setCustomTopicInput('');
+      }
+    } catch (err) {
+      console.error('Failed to generate dynamic speaking topics:', err);
+    } finally {
+      setIsGeneratingAiTopics(false);
+    }
   };
 
   // Reset to setup
@@ -485,102 +462,317 @@ export const ImpromptuSpeakingTab: React.FC = () => {
               boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
             }}
           >
+            {/* Header with Title & Action Controls */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🎯 Selected Topic</span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                  ({selectedTopic.category})
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🎯 Selected Topic</span>
+                </h2>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--color-primary-subtle)', color: 'var(--color-primary)' }}>
+                  {selectedTopic.category}
                 </span>
-              </h2>
+                {selectedTopic.isAiGenerated && (
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(168, 85, 247, 0.15))', color: '#a855f7', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Sparkles size={11} />
+                    <span>AI Generated</span>
+                  </span>
+                )}
+              </div>
 
-              <button
-                onClick={handleRandomTopic}
-                className="tap-interactive"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-pill)',
-                  background: 'var(--color-primary-subtle)',
-                  border: '1px solid var(--color-primary-subtle)',
-                  color: 'var(--color-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                <Shuffle size={13} />
-                <span>Surprise Me / Random Topic</span>
-              </button>
+              {/* Action Buttons: AI Topic Generator & Randomizer */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleGenerateAiTopics}
+                  disabled={isGeneratingAiTopics}
+                  className="tap-interactive"
+                  title="Generate 4 fresh topics via AI"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    color: '#9333ea',
+                    fontSize: '0.78125rem',
+                    fontWeight: 700,
+                    cursor: isGeneratingAiTopics ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    opacity: isGeneratingAiTopics ? 0.7 : 1
+                  }}
+                >
+                  {isGeneratingAiTopics ? (
+                    <>
+                      <RefreshCw size={13} className="spin-animation" />
+                      <span>Generating AI Topics...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={13} />
+                      <span>✨ Generate AI Topics</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleRandomTopic}
+                  className="tap-interactive"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '0.78125rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Shuffle size={13} />
+                  <span>Surprise Me / Random</span>
+                </button>
+              </div>
             </div>
 
             {/* Featured Topic Display */}
             <div
               style={{
-                background: 'var(--color-surface-sunken)',
+                background: 'linear-gradient(180deg, var(--color-surface-sunken) 0%, rgba(37, 99, 235, 0.03) 100%)',
                 border: '1px solid var(--color-border-subtle)',
                 borderRadius: 'var(--radius-lg)',
-                padding: '18px 20px',
-                marginBottom: '18px'
+                padding: '20px 22px',
+                marginBottom: '20px',
+                position: 'relative'
               }}
             >
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.35 }}>
+              <div style={{ fontSize: '1.28rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
                 "{selectedTopic.topic}"
               </div>
 
               {/* Guide questions */}
-              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+              <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Brainstorming Angles:
                 </span>
                 {selectedTopic.guideQuestions.map((q, idx) => (
-                  <div key={idx} style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>•</span>
+                  <div key={idx} style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.4 }}>
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 800 }}>•</span>
                     <span>{q}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Topic catalog quick chips */}
-            <div style={{ marginBottom: '16px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: '8px' }}>
-                Or pick another topic:
-              </span>
-              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                {CURATED_TOPICS.map(item => (
+            {/* =========================================================
+                EXTENSIVE TOPIC LIBRARY BROWSER
+                ========================================================= */}
+            <div style={{ marginBottom: '18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Layers size={15} style={{ color: 'var(--color-primary)' }} />
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: 'var(--color-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Browse Topic Library ({allSpeakingTopics.length}+ Topics)
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                  Showing {filteredTopics.length} matches
+                </span>
+              </div>
+
+              {/* Category Pills Selector */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  overflowX: 'auto',
+                  paddingBottom: '8px',
+                  marginBottom: '10px',
+                  scrollbarWidth: 'thin'
+                }}
+              >
+                {SPEAKING_CATEGORIES.map(cat => {
+                  const count = cat === 'All'
+                    ? allSpeakingTopics.length
+                    : allSpeakingTopics.filter(t => t.category === cat).length;
+                  const isActive = selectedCategory === cat;
+
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className="tap-interactive"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-pill)',
+                        border: isActive ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                        background: isActive ? 'var(--color-primary)' : 'var(--color-surface)',
+                        color: isActive ? '#ffffff' : 'var(--color-text-secondary)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span>{cat}</span>
+                      <span style={{
+                        fontSize: '0.6875rem',
+                        opacity: isActive ? 0.9 : 0.6,
+                        background: isActive ? 'rgba(255,255,255,0.2)' : 'var(--color-border-subtle)',
+                        padding: '1px 6px',
+                        borderRadius: '10px'
+                      }}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Keyword Search Input */}
+              <div style={{ position: 'relative', marginBottom: '12px' }}>
+                <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder={`Search ${allSpeakingTopics.length}+ topics by keyword (e.g. interview, AI, leadership, conflict, habit)...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 36px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-surface-sunken)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '0.8125rem'
+                  }}
+                />
+                {searchQuery && (
                   <button
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedTopic(item);
-                      setCustomTopicInput('');
-                    }}
-                    className="tap-interactive"
+                    onClick={() => setSearchQuery('')}
                     style={{
-                      padding: '8px 14px',
-                      borderRadius: 'var(--radius-pill)',
-                      border: selectedTopic.id === item.id ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
-                      background: selectedTopic.id === item.id ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
-                      color: selectedTopic.id === item.id ? 'var(--color-primary)' : 'var(--color-text-primary)',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-text-muted)',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      fontSize: '0.75rem',
+                      fontWeight: 700
                     }}
                   >
-                    {item.topic.length > 34 ? `${item.topic.slice(0, 32)}...` : item.topic}
+                    Clear
                   </button>
-                ))}
+                )}
               </div>
+
+              {/* Topic Grid List */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: '8px',
+                  marginBottom: '10px'
+                }}
+              >
+                {(isTopicListExpanded ? filteredTopics : filteredTopics.slice(0, 6)).map(item => {
+                  const isSelected = selectedTopic.id === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedTopic(item);
+                        setCustomTopicInput('');
+                      }}
+                      className="tap-interactive"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-lg)',
+                        border: isSelected ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
+                        background: isSelected ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '6px'
+                      }}
+                    >
+                      <div style={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        color: isSelected ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                        lineHeight: 1.35
+                      }}>
+                        {item.topic}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                          {item.category}
+                        </span>
+                        {item.isAiGenerated && (
+                          <span style={{ fontSize: '0.625rem', fontWeight: 800, color: '#9333ea', background: 'rgba(168, 85, 247, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                            AI Generated
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Expand / Collapse Button if more than 6 topics */}
+              {filteredTopics.length > 6 && (
+                <button
+                  onClick={() => setIsTopicListExpanded(prev => !prev)}
+                  className="tap-interactive"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px dashed var(--color-border)',
+                    background: 'var(--color-surface-sunken)',
+                    color: 'var(--color-primary)',
+                    fontSize: '0.78125rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {isTopicListExpanded ? (
+                    <>
+                      <ChevronUp size={14} />
+                      <span>Show Fewer Topics</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={14} />
+                      <span>Show All {filteredTopics.length} Topics in this Category</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Custom Topic write-in */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <input
                 type="text"
-                placeholder="Or type any custom topic here (e.g. My First Interview Experience)..."
+                placeholder="Or type your own custom topic here (e.g. My First Job Interview Experience)..."
                 value={customTopicInput}
                 onChange={(e) => setCustomTopicInput(e.target.value)}
                 style={{

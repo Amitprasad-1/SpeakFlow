@@ -14,78 +14,24 @@ import {
   ChevronRight,
   Clock,
   Layers,
-  FileText
+  FileText,
+  Search,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { GeminiAIService, WritingAnalysisReport } from '../../services/GeminiAIService';
-
-interface WritingTopic {
-  id: string;
-  category: string;
-  title: string;
-  starterPrompt: string;
-  outlinePoints: string[];
-}
-
-const CURATED_ESSAY_TOPICS: WritingTopic[] = [
-  {
-    id: 'w_tech',
-    category: 'Technology & Society',
-    title: 'Should Smartphone Usage Be Restricted in Schools?',
-    starterPrompt: 'In modern education, the presence of smartphones in classrooms sparks continuous debate...',
-    outlinePoints: [
-      'Introduction: The ubiquity of smartphones among students.',
-      'Body: Distractions and academic impact vs emergency access & educational apps.',
-      'Conclusion: Balanced policy (e.g., restricted in class, permitted during breaks).'
-    ]
-  },
-  {
-    id: 'w_work',
-    category: 'Work & Lifestyle',
-    title: 'The Pros and Cons of a Four-Day Work Week',
-    starterPrompt: 'As companies explore workplace productivity, the four-day work week has emerged as an appealing model...',
-    outlinePoints: [
-      'Introduction: The shift towards employee well-being and flexibility.',
-      'Body: Better work-life balance and mental health vs scheduling hurdles in customer-facing roles.',
-      'Conclusion: Why flexibility with output-focused metrics creates the best outcome.'
-    ]
-  },
-  {
-    id: 'w_health',
-    category: 'Daily Life & Wellness',
-    title: 'How Daily Physical Activity Influences Mental Focus and Mood',
-    starterPrompt: 'While physical exercise is universally praised for cardiovascular health, its impact on cognitive performance is profound...',
-    outlinePoints: [
-      'Introduction: Link between regular movement and mental clarity.',
-      'Body: Stress reduction and brain function during demanding days.',
-      'Conclusion: Small daily commitments lead to compounding wellness.'
-    ]
-  },
-  {
-    id: 'w_learning',
-    category: 'Personal Development',
-    title: 'Practical Experience vs Academic Degrees: Which Matters More?',
-    starterPrompt: 'In today\'s dynamic job market, employers increasingly debate the relative worth of university degrees versus hands-on experience...',
-    outlinePoints: [
-      'Introduction: The evolving criteria for career success.',
-      'Body: Theoretical foundations from academia vs problem-solving in real projects.',
-      'Conclusion: The most effective professionals combine both.'
-    ]
-  },
-  {
-    id: 'w_environment',
-    category: 'Environment',
-    title: 'Small Individual Habits That Create Large Environmental Impact',
-    starterPrompt: 'Combating climate change often feels overwhelming, yet everyday individual actions collectively drive immense change...',
-    outlinePoints: [
-      'Introduction: Power of micro-habits in sustainability.',
-      'Body: Reducing single-use plastics, conserving electricity, and conscious consumption.',
-      'Conclusion: Individual accountability inspires systemic reform.'
-    ]
-  }
-];
+import { EXTENSIVE_WRITING_TOPICS, WRITING_CATEGORIES, WritingTopicItem } from '../../data/topicCatalog';
 
 export const EssayWritingTab: React.FC = () => {
-  const [selectedTopic, setSelectedTopic] = useState<WritingTopic>(CURATED_ESSAY_TOPICS[0]);
+  // Topic Catalog & AI Generation
+  const [allWritingTopics, setAllWritingTopics] = useState<WritingTopicItem[]>(EXTENSIVE_WRITING_TOPICS);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isGeneratingAiTopics, setIsGeneratingAiTopics] = useState<boolean>(false);
+  const [isTopicListExpanded, setIsTopicListExpanded] = useState<boolean>(false);
+
+  const [selectedTopic, setSelectedTopic] = useState<WritingTopicItem>(EXTENSIVE_WRITING_TOPICS[0]);
   const [customTopicInput, setCustomTopicInput] = useState<string>('');
   const [essayText, setEssayText] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -110,14 +56,50 @@ export const EssayWritingTab: React.FC = () => {
     return 'ideal';
   }, [wordCount, minTarget, maxTarget]);
 
-  // Handle Random Topic
+  // Filtered writing topics based on category and search query
+  const filteredTopics = useMemo(() => {
+    return allWritingTopics.filter(item => {
+      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      if (!matchesCategory) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        item.title.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.outlinePoints.some(p => p.toLowerCase().includes(q))
+      );
+    });
+  }, [allWritingTopics, selectedCategory, searchQuery]);
+
+  // Handle Random Topic from filtered or all
   const handleRandomTopic = () => {
-    const others = CURATED_ESSAY_TOPICS.filter(t => t.id !== selectedTopic.id);
-    const random = others[Math.floor(Math.random() * others.length)] || CURATED_ESSAY_TOPICS[0];
+    const pool = filteredTopics.length > 0 ? filteredTopics : allWritingTopics;
+    const others = pool.filter(t => t.id !== selectedTopic.id);
+    const random = others[Math.floor(Math.random() * others.length)] || pool[0];
     setSelectedTopic(random);
     setCustomTopicInput('');
     setEssayText('');
     setReport(null);
+  };
+
+  // Generate Fresh AI Essay Prompts
+  const handleGenerateAiTopics = async () => {
+    if (isGeneratingAiTopics) return;
+    setIsGeneratingAiTopics(true);
+    try {
+      const generated = await GeminiAIService.generateDynamicWritingTopics(selectedCategory);
+      if (generated && generated.length > 0) {
+        setAllWritingTopics(prev => [...generated, ...prev]);
+        setSelectedTopic(generated[0]);
+        setCustomTopicInput('');
+        setEssayText('');
+        setReport(null);
+      }
+    } catch (err) {
+      console.error('Failed to generate writing topics:', err);
+    } finally {
+      setIsGeneratingAiTopics(false);
+    }
   };
 
   // Submit for AI Analysis
@@ -235,95 +217,311 @@ export const EssayWritingTab: React.FC = () => {
               boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🎯 Essay Topic</span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                  ({selectedTopic.category})
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🎯 Essay Topic</span>
+                </h2>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'rgba(16, 185, 129, 0.1)', color: '#059669' }}>
+                  {selectedTopic.category}
                 </span>
-              </h2>
+                {selectedTopic.isAiGenerated && (
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(168, 85, 247, 0.15))', color: '#a855f7', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Sparkles size={11} />
+                    <span>AI Generated</span>
+                  </span>
+                )}
+              </div>
 
-              <button
-                onClick={handleRandomTopic}
-                className="tap-interactive"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-pill)',
-                  background: 'var(--color-primary-subtle)',
-                  border: '1px solid var(--color-primary-subtle)',
-                  color: 'var(--color-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                <Shuffle size={13} />
-                <span>Random Topic</span>
-              </button>
+              {/* Action Controls: AI Topic Generator & Randomizer */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleGenerateAiTopics}
+                  disabled={isGeneratingAiTopics}
+                  className="tap-interactive"
+                  title="Generate 4 fresh essay prompts via AI"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#059669',
+                    fontSize: '0.78125rem',
+                    fontWeight: 700,
+                    cursor: isGeneratingAiTopics ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    opacity: isGeneratingAiTopics ? 0.7 : 1
+                  }}
+                >
+                  {isGeneratingAiTopics ? (
+                    <>
+                      <RefreshCw size={13} className="spin-animation" />
+                      <span>Generating AI Prompts...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={13} />
+                      <span>✨ Generate AI Prompts</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleRandomTopic}
+                  className="tap-interactive"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '0.78125rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Shuffle size={13} />
+                  <span>Random Topic</span>
+                </button>
+              </div>
             </div>
 
             {/* Featured Topic Banner */}
             <div
               style={{
-                background: 'var(--color-surface-sunken)',
+                background: 'linear-gradient(180deg, var(--color-surface-sunken) 0%, rgba(16, 185, 129, 0.03) 100%)',
                 border: '1px solid var(--color-border-subtle)',
                 borderRadius: 'var(--radius-lg)',
-                padding: '18px 20px',
-                marginBottom: '16px'
+                padding: '20px 22px',
+                marginBottom: '18px'
               }}
             >
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.35 }}>
+              <div style={{ fontSize: '1.28rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
                 "{selectedTopic.title}"
               </div>
 
               {/* Outline Points */}
-              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+              <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Suggested Outline:
                 </span>
                 {selectedTopic.outlinePoints.map((point, idx) => (
-                  <div key={idx} style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: '#10b981', fontWeight: 700 }}>•</span>
+                  <div key={idx} style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.4 }}>
+                    <span style={{ color: '#10b981', fontWeight: 800 }}>•</span>
                     <span>{point}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Topic quick selector chips */}
-            <div style={{ marginBottom: '14px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: '8px' }}>
-                Or choose from other prompts:
-              </span>
-              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                {CURATED_ESSAY_TOPICS.map(item => (
+            {/* =========================================================
+                EXTENSIVE WRITING LIBRARY BROWSER
+                ========================================================= */}
+            <div style={{ marginBottom: '18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Layers size={15} style={{ color: '#10b981' }} />
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: 'var(--color-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Browse Essay Library ({allWritingTopics.length}+ Topics)
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                  Showing {filteredTopics.length} matches
+                </span>
+              </div>
+
+              {/* Category Pills Selector */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  overflowX: 'auto',
+                  paddingBottom: '8px',
+                  marginBottom: '10px',
+                  scrollbarWidth: 'thin'
+                }}
+              >
+                {WRITING_CATEGORIES.map(cat => {
+                  const count = cat === 'All'
+                    ? allWritingTopics.length
+                    : allWritingTopics.filter(t => t.category === cat).length;
+                  const isActive = selectedCategory === cat;
+
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className="tap-interactive"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-pill)',
+                        border: isActive ? '1px solid #10b981' : '1px solid var(--color-border)',
+                        background: isActive ? '#10b981' : 'var(--color-surface)',
+                        color: isActive ? '#ffffff' : 'var(--color-text-secondary)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span>{cat}</span>
+                      <span style={{
+                        fontSize: '0.6875rem',
+                        opacity: isActive ? 0.9 : 0.6,
+                        background: isActive ? 'rgba(255,255,255,0.2)' : 'var(--color-border-subtle)',
+                        padding: '1px 6px',
+                        borderRadius: '10px'
+                      }}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Keyword Search Input */}
+              <div style={{ position: 'relative', marginBottom: '12px' }}>
+                <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder={`Search ${allWritingTopics.length}+ essay prompts by keyword (e.g. remote work, AI, environment, degree)...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 36px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-surface-sunken)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '0.8125rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {searchQuery && (
                   <button
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedTopic(item);
-                      setCustomTopicInput('');
-                    }}
-                    className="tap-interactive"
+                    onClick={() => setSearchQuery('')}
                     style={{
-                      padding: '8px 14px',
-                      borderRadius: 'var(--radius-pill)',
-                      border: selectedTopic.id === item.id ? '1px solid #10b981' : '1px solid var(--color-border)',
-                      background: selectedTopic.id === item.id ? 'rgba(16, 185, 129, 0.1)' : 'var(--color-surface)',
-                      color: selectedTopic.id === item.id ? '#059669' : 'var(--color-text-primary)',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-text-muted)',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      fontSize: '0.75rem',
+                      fontWeight: 700
                     }}
                   >
-                    {item.title.length > 34 ? `${item.title.slice(0, 32)}...` : item.title}
+                    Clear
                   </button>
-                ))}
+                )}
               </div>
+
+              {/* Topic Grid List */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: '8px',
+                  marginBottom: '10px'
+                }}
+              >
+                {(isTopicListExpanded ? filteredTopics : filteredTopics.slice(0, 6)).map(item => {
+                  const isSelected = selectedTopic.id === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedTopic(item);
+                        setCustomTopicInput('');
+                        setEssayText('');
+                        setReport(null);
+                      }}
+                      className="tap-interactive"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-lg)',
+                        border: isSelected ? '1.5px solid #10b981' : '1px solid var(--color-border)',
+                        background: isSelected ? 'rgba(16, 185, 129, 0.08)' : 'var(--color-surface)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '6px'
+                      }}
+                    >
+                      <div style={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        color: isSelected ? '#059669' : 'var(--color-text-primary)',
+                        lineHeight: 1.35
+                      }}>
+                        {item.title}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                          {item.category}
+                        </span>
+                        {item.isAiGenerated && (
+                          <span style={{ fontSize: '0.625rem', fontWeight: 800, color: '#9333ea', background: 'rgba(168, 85, 247, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                            AI Generated
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Expand / Collapse Button if more than 6 topics */}
+              {filteredTopics.length > 6 && (
+                <button
+                  onClick={() => setIsTopicListExpanded(prev => !prev)}
+                  className="tap-interactive"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px dashed var(--color-border)',
+                    background: 'var(--color-surface-sunken)',
+                    color: '#059669',
+                    fontSize: '0.78125rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {isTopicListExpanded ? (
+                    <>
+                      <ChevronUp size={14} />
+                      <span>Show Fewer Prompts</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={14} />
+                      <span>Show All {filteredTopics.length} Prompts in this Category</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Custom Topic Input */}

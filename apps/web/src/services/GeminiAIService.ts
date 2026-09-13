@@ -1,4 +1,5 @@
 import { BrowserStorage } from '../storage/BrowserStorage';
+import { SpeakingTopicItem, WritingTopicItem } from '../data/topicCatalog';
 
 export interface ChatMessage {
   sender: 'user' | 'ai';
@@ -797,6 +798,223 @@ Return a STRICT JSON object matching this schema:
       summary: `Solid essay draft on "${topic}". Incorporate the sentence enhancements and vocabulary upgrades below to take your written English to the next level.`,
       source: 'offline_heuristic'
     };
+  }
+
+  /**
+   * Generates fresh, dynamic extempore speaking topics on the fly using Gemini AI or procedural generator.
+   */
+  public static async generateDynamicSpeakingTopics(category?: string): Promise<SpeakingTopicItem[]> {
+    const apiKey = this.getApiKey();
+    const effectiveCategory = category && category !== 'All' ? category : 'General Communication & Current Trends';
+
+    if (apiKey) {
+      try {
+        const prompt = `Generate 4 brand new, highly engaging impromptu speaking topics for English learners and job seekers.
+Category: "${effectiveCategory}".
+Format your response as a valid JSON array of objects with the exact keys:
+[
+  {
+    "category": "${effectiveCategory}",
+    "topic": "Compelling Title Here",
+    "guideQuestions": [
+      "Point or question 1",
+      "Point or question 2",
+      "Point or question 3"
+    ]
+  }
+]
+Return ONLY raw JSON, with no markdown code blocks or additional text.`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 1024
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const cleanedJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedJson);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((item: any, idx: number) => ({
+              id: `ai_spk_${Date.now()}_${idx}`,
+              category: item.category || effectiveCategory,
+              topic: item.topic || 'Dynamic AI Topic',
+              guideQuestions: Array.isArray(item.guideQuestions) && item.guideQuestions.length > 0
+                ? item.guideQuestions
+                : ['What is your primary stance?', 'Can you share a real-world example?', 'What is your final takeaway?'],
+              isAiGenerated: true
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn('Gemini topic generation fallback triggered:', err);
+      }
+    }
+
+    // Procedural Fallback Generator with varied creative angles
+    const fallbackSeed = [
+      {
+        topic: `The Real Impact of ${effectiveCategory.includes('AI') ? 'Autonomous Agents' : 'Rapid Technological Change'} on Human Connection`,
+        guideQuestions: [
+          'How is technology altering the depth of everyday conversations?',
+          'What is one benefit and one drawback you observe personally?',
+          'How can we preserve genuine interpersonal trust?'
+        ]
+      },
+      {
+        topic: `Why Adaptability Is Becoming More Valuable Than Specialization in Modern Careers`,
+        guideQuestions: [
+          'How fast do modern industries change and render old skills obsolete?',
+          'What mindset helps someone quickly learn new domains?',
+          'How do you personally embrace unexpected professional pivots?'
+        ]
+      },
+      {
+        topic: `Should Public Speaking and Negotiation Be Mandatory Courses in High School?`,
+        guideQuestions: [
+          'Why are verbal persuasion and conflict resolution critical life skills?',
+          'How does fear of public speaking hold talented people back?',
+          'What would an ideal practical curriculum look like?'
+        ]
+      },
+      {
+        topic: `Lessons Learned from Navigating an Unforeseen Crisis Under Tight Deadlines`,
+        guideQuestions: [
+          'What was the high-pressure situation and what was at stake?',
+          'How did you maintain emotional composure and communicate effectively?',
+          'What advice would you give to someone facing a similar challenge?'
+        ]
+      }
+    ];
+
+    return fallbackSeed.map((item, idx) => ({
+      id: `ai_spk_proc_${Date.now()}_${idx}`,
+      category: effectiveCategory,
+      topic: item.topic,
+      guideQuestions: item.guideQuestions,
+      isAiGenerated: true
+    }));
+  }
+
+  /**
+   * Generates fresh essay writing topics on the fly using Gemini AI or procedural generator.
+   */
+  public static async generateDynamicWritingTopics(category?: string): Promise<WritingTopicItem[]> {
+    const apiKey = this.getApiKey();
+    const effectiveCategory = category && category !== 'All' ? category : 'Modern Society & Technology';
+
+    if (apiKey) {
+      try {
+        const prompt = `Generate 4 brand new, highly engaging 150-200 word essay prompts for English writing diagnostics.
+Category: "${effectiveCategory}".
+Format your response as a valid JSON array of objects with the exact keys:
+[
+  {
+    "category": "${effectiveCategory}",
+    "title": "Compelling Title Here",
+    "starterPrompt": "Engaging opening sentence to spark writing...",
+    "outlinePoints": [
+      "Introduction: Outline aspect 1",
+      "Body: Outline aspect 2",
+      "Conclusion: Outline aspect 3"
+    ]
+  }
+]
+Return ONLY raw JSON, with no markdown code blocks or additional text.`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 1024
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const cleanedJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedJson);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((item: any, idx: number) => ({
+              id: `ai_wrt_${Date.now()}_${idx}`,
+              category: item.category || effectiveCategory,
+              title: item.title || 'Dynamic AI Writing Prompt',
+              starterPrompt: item.starterPrompt || 'Consider how modern society approaches this topic...',
+              outlinePoints: Array.isArray(item.outlinePoints) && item.outlinePoints.length > 0
+                ? item.outlinePoints
+                : ['Introduction: Define the issue.', 'Body: Provide 2 key arguments.', 'Conclusion: State your verdict.'],
+              isAiGenerated: true
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn('Gemini writing topic generation fallback triggered:', err);
+      }
+    }
+
+    // Procedural Fallback Generator
+    const fallbackSeed = [
+      {
+        title: `The Ethics of Generative AI in Creative Arts and Journalism`,
+        starterPrompt: `As generative AI models create compelling art, music, and journalism, the boundaries of copyright and human creativity are challenged...`,
+        outlinePoints: [
+          'Introduction: Rapid rise of generative AI in creative professions.',
+          'Body: Efficiency and creative assistance vs ethical authorship and job security.',
+          'Conclusion: Sustainable collaboration between human creators and AI tools.'
+        ]
+      },
+      {
+        title: `Is Digital Nomadism the Future of White-Collar Employment?`,
+        starterPrompt: `With high-speed internet and cloud software, millions of workers now choose to live abroad while working remotely...`,
+        outlinePoints: [
+          'Introduction: The growing appeal of global remote work.',
+          'Body: Cultural immersion and flexibility vs tax hurdles and time-zone isolation.',
+          'Conclusion: Why hybrid nomadism offers the healthiest sustainable balance.'
+        ]
+      },
+      {
+        title: `Rethinking Mental Health Days in Fast-Paced Workplaces`,
+        starterPrompt: `Chronic burnout in competitive industries has prompted companies to reconsider proactive mental well-being policies...`,
+        outlinePoints: [
+          'Introduction: Rising stress levels across modern corporate environments.',
+          'Body: Productivity gains and employee retention vs potential workload bottlenecks.',
+          'Conclusion: Creating a supportive company culture where taking breaks is normalized.'
+        ]
+      },
+      {
+        title: `The Role of Renewable Energy in Economic Independence`,
+        starterPrompt: `Transitioning to wind, solar, and battery storage represents not only an ecological priority, but a strategic economic shift...`,
+        outlinePoints: [
+          'Introduction: The dual imperative of ecological sustainability and economic sovereignty.',
+          'Body: Long-term cost stability and clean job growth vs upfront infrastructure capital.',
+          'Conclusion: Why aggressive investment in renewables guarantees future security.'
+        ]
+      }
+    ];
+
+    return fallbackSeed.map((item, idx) => ({
+      id: `ai_wrt_proc_${Date.now()}_${idx}`,
+      category: effectiveCategory,
+      title: item.title,
+      starterPrompt: item.starterPrompt,
+      outlinePoints: item.outlinePoints,
+      isAiGenerated: true
+    }));
   }
 }
 
