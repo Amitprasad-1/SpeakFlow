@@ -23,7 +23,7 @@ import {
   ChevronRight,
   Gauge,
   ListFilter,
-  VolumeX
+  Check
 } from 'lucide-react';
 
 export interface DailyReadingTabProps {
@@ -45,7 +45,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     return READING_PASSAGES_CATALOG[idx] || READING_PASSAGES_CATALOG[0];
   }, [currentDateString]);
 
-  // Parse passage into clean individual sentences for guided speed reading
+  // Parse passage into clean individual sentences
   const sentences = useMemo<string[]>(() => {
     if (!passage?.passageText) return [];
     const matches = passage.passageText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g);
@@ -91,7 +91,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     };
   }, []);
 
-  // Smooth auto-scroll to keep active sentence centered
+  // Smooth auto-scroll to keep active sentence comfortably in view
   const scrollToActiveSentence = (index: number) => {
     const el = sentenceRefs.current[index];
     if (el) {
@@ -296,25 +296,56 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
   };
 
+  const totalProgressPercent = Math.round(((activeSentenceIndex + 1) / sentences.length) * 100);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: '840px', margin: '0 auto' }}>
-      {/* Header Banner */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: '860px', margin: '0 auto', paddingBottom: 'var(--space-8)' }}>
+      {/* 1. Clean Editorial Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
-            <Badge variant="primary">Daily 200-Word Reading</Badge>
-            <Badge variant="level">{passage.topic}</Badge>
-            <Badge variant="focus">{passage.wordCount} words</Badge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: 'var(--color-primary)',
+                background: 'var(--color-primary-subtle)',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-pill)',
+                border: '1px solid var(--color-primary-light)'
+              }}
+            >
+              Daily 200-Word Reading
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>•</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+              {passage.topic}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>•</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+              {passage.wordCount} words (~1 min)
+            </span>
           </div>
-          <h1 className="typography-h2">{passage.title}</h1>
-          <p className="typography-body-sm" style={{ color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-            Interactive guided sentence reading — moves sentence by sentence to train reading speed and pronunciation cadence.
-          </p>
+
+          <h1
+            style={{
+              fontSize: 'clamp(1.5rem, 3.2vw, 2rem)',
+              fontWeight: 800,
+              color: 'var(--color-text-primary)',
+              lineHeight: 1.25,
+              margin: 0,
+              letterSpacing: '-0.02em'
+            }}
+          >
+            {passage.title}
+          </h1>
         </div>
 
-        {/* View Mode & Text Size Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          {/* View Mode Switcher */}
+        {/* Top-Right Secondary Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* View Mode Toggle */}
           <div style={{ display: 'flex', background: 'var(--color-surface-sunken)', padding: '2px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--color-border)' }}>
             <button
               onClick={() => setViewMode('guided')}
@@ -322,18 +353,19 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                padding: 'var(--space-1) var(--space-2-5)',
+                padding: '4px 10px',
                 borderRadius: 'var(--radius-pill)',
                 border: 'none',
                 background: viewMode === 'guided' ? 'var(--color-primary)' : 'transparent',
                 color: viewMode === 'guided' ? '#fff' : 'var(--color-text-secondary)',
                 fontSize: '0.75rem',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
               <Gauge size={13} />
-              <span>Guided Pacer</span>
+              <span>Pacer</span>
             </button>
             <button
               onClick={() => setViewMode('full')}
@@ -341,14 +373,15 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                padding: 'var(--space-1) var(--space-2-5)',
+                padding: '4px 10px',
                 borderRadius: 'var(--radius-pill)',
                 border: 'none',
                 background: viewMode === 'full' ? 'var(--color-primary)' : 'transparent',
                 color: viewMode === 'full' ? '#fff' : 'var(--color-text-secondary)',
                 fontSize: '0.75rem',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
               <ListFilter size={13} />
@@ -356,25 +389,26 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             </button>
           </div>
 
+          {/* Text Size */}
           <button
             onClick={() => setTextSize(prev => prev === 'normal' ? 'large' : 'normal')}
             className="tap-interactive"
             title="Toggle Text Size"
             style={{
-              padding: 'var(--space-1-5) var(--space-2-5)',
+              padding: '5px 9px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              fontSize: 'var(--text-caption)',
-              fontWeight: 600,
+              fontSize: '0.75rem',
+              fontWeight: 700,
               cursor: 'pointer',
               color: 'var(--color-text-primary)'
             }}
           >
-            {textSize === 'normal' ? <ZoomIn size={15} /> : <ZoomOut size={15} />}
+            {textSize === 'normal' ? <ZoomIn size={14} /> : <ZoomOut size={14} />}
             <span>{textSize === 'normal' ? 'A+' : 'A-'}</span>
           </button>
 
@@ -382,73 +416,85 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             <button
               onClick={resetPractice}
               className="tap-interactive"
+              title="Reset session"
               style={{
-                padding: 'var(--space-1-5) var(--space-3)',
+                padding: '5px 9px',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                fontSize: 'var(--text-caption)',
+                gap: '4px',
+                fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 color: 'var(--color-text-secondary)'
               }}
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={13} />
               <span>Reset</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Main Interactive Control Bar */}
-      <Card
-        variant="elevated"
-        padding="md"
+      {/* 2. Sleek Floating Interaction Bar */}
+      <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 'var(--space-4)',
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, rgba(37, 99, 235, 0.06) 100%)',
-          border: isPacerRunning ? '1px solid var(--color-primary)' : '1px solid var(--color-border)'
+          gap: 'var(--space-3)',
+          padding: 'var(--space-3) var(--space-4)',
+          background: 'var(--color-surface)',
+          border: isPacerRunning ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: isPacerRunning
+            ? '0 6px 24px rgba(16, 185, 129, 0.2)'
+            : '0 4px 16px rgba(0, 0, 0, 0.05)',
+          transition: 'all 0.25s ease'
         }}
       >
-        {/* Speed Pacer Launcher & Speed Buttons */}
+        {/* Left: Start Speed Reading Button + Speed Presets */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
           <button
             onClick={toggleSpeedPacer}
-            className={`speakflow-btn ${isPacerRunning ? 'btn-variant-danger' : 'btn-variant-primary'} cta-breathing`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 'var(--space-2)',
-              padding: 'var(--space-2-5) var(--space-5)',
+              gap: '8px',
+              padding: '10px 22px',
               borderRadius: 'var(--radius-pill)',
+              border: 'none',
+              background: isPacerRunning
+                ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#ffffff',
               fontWeight: 800,
+              fontSize: '0.875rem',
               cursor: 'pointer',
-              fontSize: 'var(--text-body-sm)',
-              boxShadow: isPacerRunning ? '0 0 15px rgba(239, 68, 68, 0.3)' : '0 0 15px rgba(37, 99, 235, 0.3)'
+              boxShadow: isPacerRunning
+                ? '0 0 16px rgba(239, 68, 68, 0.4)'
+                : '0 0 16px rgba(16, 185, 129, 0.35)',
+              transition: 'all 0.2s ease'
             }}
           >
-            {isPacerRunning ? <Pause size={18} /> : <Play size={18} fill="currentColor" />}
+            {isPacerRunning ? <Pause size={17} /> : <Play size={17} fill="currentColor" />}
             <span>{isPacerRunning ? 'Pause Pacer' : 'Start Speed Reading'}</span>
           </button>
 
           {/* Speed Selector (WPM) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--color-surface-sunken)', padding: '2px 4px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--color-border)' }}>
-            <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0 6px', color: 'var(--color-text-muted)' }}>
-              SPEED:
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--color-surface-sunken)', padding: '2px 4px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--color-border)' }}>
+            <span style={{ fontSize: '0.6875rem', fontWeight: 800, padding: '0 4px', color: 'var(--color-text-muted)' }}>
+              SPEED
             </span>
             {([120, 150, 180, 210] as const).map((wpm) => (
               <button
                 key={wpm}
                 onClick={() => setPacerSpeed(wpm)}
                 style={{
-                  padding: '2px 8px',
+                  padding: '3px 9px',
                   borderRadius: 'var(--radius-pill)',
                   border: 'none',
                   background: pacerSpeed === wpm ? 'var(--color-primary)' : 'transparent',
@@ -459,53 +505,145 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                   transition: 'all 0.15s ease'
                 }}
               >
-                {wpm} WPM
+                {wpm}
               </button>
             ))}
+            <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-muted)', paddingRight: '4px' }}>
+              WPM
+            </span>
           </div>
         </div>
 
-        {/* Secondary: Listen Audio & Read Aloud Mic */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          {/* Listen Native Speaker */}
+        {/* Right: Audio Listen & Voice Recording */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          {/* Listen Native */}
           <button
             onClick={toggleAudio}
-            className="speakflow-btn btn-variant-secondary"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: 'var(--space-2) var(--space-3)',
+              padding: '8px 14px',
               borderRadius: 'var(--radius-pill)',
+              border: '1px solid var(--color-border)',
+              background: isPlayingAudio ? 'var(--color-primary-subtle)' : 'var(--color-surface)',
+              color: isPlayingAudio ? 'var(--color-primary)' : 'var(--color-text-primary)',
               fontWeight: 700,
-              fontSize: 'var(--text-caption)',
+              fontSize: '0.8125rem',
               cursor: 'pointer'
             }}
           >
             {isPlayingAudio ? <Square size={14} fill="currentColor" /> : <Volume2 size={15} />}
-            <span>{isPlayingAudio ? 'Stop Audio' : 'Listen Native'}</span>
+            <span>{isPlayingAudio ? 'Stop' : 'Listen Native'}</span>
           </button>
 
-          {/* Tap & Record Mic */}
+          {/* Record Mic */}
           <button
             onClick={toggleRecording}
-            className={`speakflow-btn ${isRecording ? 'btn-variant-danger' : 'btn-variant-secondary'}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: 'var(--space-2) var(--space-3)',
+              padding: '8px 14px',
               borderRadius: 'var(--radius-pill)',
+              border: '1px solid var(--color-border)',
+              background: isRecording ? 'rgba(239, 68, 68, 0.15)' : 'var(--color-surface)',
+              color: isRecording ? '#ef4444' : 'var(--color-text-primary)',
               fontWeight: 700,
-              fontSize: 'var(--text-caption)',
+              fontSize: '0.8125rem',
               cursor: 'pointer'
             }}
           >
             {isRecording ? <MicOff size={14} /> : <Mic size={15} />}
-            <span>{isRecording ? `${readingSeconds}s (Finish)` : 'Record Mic'}</span>
+            <span>{isRecording ? `${readingSeconds}s` : 'Practice Mic'}</span>
           </button>
         </div>
-      </Card>
+      </div>
+
+      {/* 3. Reading Progress Status Bar */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Sentence {activeSentenceIndex + 1} of {sentences.length}
+            </span>
+            {isPacerRunning && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.6875rem',
+                  fontWeight: 800,
+                  color: '#10b981',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em'
+                }}
+              >
+                ● Pacing at {pacerSpeed} WPM
+              </span>
+            )}
+          </div>
+
+          {/* Previous / Next buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              onClick={handlePrevSentence}
+              disabled={activeSentenceIndex === 0}
+              aria-label="Previous sentence"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface)',
+                color: activeSentenceIndex === 0 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: activeSentenceIndex === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronLeft size={14} />
+              <span>Prev</span>
+            </button>
+            <button
+              onClick={handleNextSentence}
+              disabled={activeSentenceIndex === sentences.length - 1}
+              aria-label="Next sentence"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface)',
+                color: activeSentenceIndex === sentences.length - 1 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: activeSentenceIndex === sentences.length - 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <span>Next</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Global Progress Line */}
+        <div style={{ height: '3px', background: 'var(--color-border-subtle)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${totalProgressPercent}%`,
+              background: 'var(--color-primary)',
+              transition: 'width 0.25s ease'
+            }}
+          />
+        </div>
+      </div>
 
       {/* Completion Summary Card */}
       {hasCompleted && estimatedWpm && (
@@ -540,197 +678,147 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         </Card>
       )}
 
-      {/* VIEW MODE 1: Guided Speed-Pacer (Interactive sentence-by-sentence moving highlighter) */}
-      {viewMode === 'guided' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {/* Top navigation mini-bar for sentences */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 var(--space-1)' }}>
-            <span style={{ fontSize: 'var(--text-caption)', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-              Sentence {activeSentenceIndex + 1} of {sentences.length}
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <button
-                onClick={handlePrevSentence}
-                disabled={activeSentenceIndex === 0}
+      {/* 4. THE READING STAGE */}
+      {viewMode === 'guided' ? (
+        /* GUIDED TELEPROMPTER STREAM: Smooth flowing cards, zero clipping */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: '4px' }}>
+          {sentences.map((sentence, idx) => {
+            const isActive = idx === activeSentenceIndex;
+            const isPast = idx < activeSentenceIndex;
+            const isSpeakingThis = idx === playingSentenceIndex;
+
+            return (
+              <div
+                key={idx}
+                ref={(el) => (sentenceRefs.current[idx] = el)}
+                onClick={() => handleSelectSentence(idx)}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '3px 8px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)',
-                  color: activeSentenceIndex === 0 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: activeSentenceIndex === 0 ? 'not-allowed' : 'pointer'
+                  position: 'relative',
+                  padding: textSize === 'large' ? '22px 28px' : '18px 22px',
+                  borderRadius: 'var(--radius-lg)',
+                  border: isActive
+                    ? '2px solid var(--color-primary)'
+                    : '1px solid var(--color-border)',
+                  background: isActive
+                    ? 'var(--color-surface)'
+                    : 'var(--color-surface)',
+                  boxShadow: isActive
+                    ? '0 8px 28px rgba(37, 99, 235, 0.18)'
+                    : '0 1px 3px rgba(0, 0, 0, 0.04)',
+                  opacity: isActive ? 1.0 : isPast ? 0.65 : 0.78,
+                  transform: isActive ? 'scale(1.01)' : 'scale(1.0)',
+                  transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                  cursor: 'pointer',
+                  minHeight: 'auto',
+                  overflow: 'visible'
                 }}
               >
-                <ChevronLeft size={14} />
-                <span>Prev</span>
-              </button>
-              <button
-                onClick={handleNextSentence}
-                disabled={activeSentenceIndex === sentences.length - 1}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '3px 8px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)',
-                  color: activeSentenceIndex === sentences.length - 1 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: activeSentenceIndex === sentences.length - 1 ? 'not-allowed' : 'pointer'
-                }}
-              >
-                <span>Next</span>
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
+                {/* Countdown Progress Bar under Active Sentence */}
+                {isActive && isPacerRunning && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: 'linear-gradient(90deg, #10b981 0%, #38bdf8 100%)',
+                      width: `${sentenceProgress}%`,
+                      transition: 'width 40ms linear'
+                    }}
+                  />
+                )}
 
-          {/* Vertical Sentence Stack with Active Highlight */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-3)',
-              maxHeight: '620px',
-              overflowY: 'auto',
-              paddingRight: '6px',
-              scrollBehavior: 'smooth'
-            }}
-          >
-            {sentences.map((sentence, idx) => {
-              const isActive = idx === activeSentenceIndex;
-              const isSpeakingThis = idx === playingSentenceIndex;
-
-              return (
-                <div
-                  key={idx}
-                  ref={(el) => (sentenceRefs.current[idx] = el)}
-                  onClick={() => handleSelectSentence(idx)}
-                  className="tap-interactive"
-                  style={{
-                    position: 'relative',
-                    padding: textSize === 'large' ? 'var(--space-4) var(--space-5)' : 'var(--space-3-5) var(--space-4)',
-                    borderRadius: 'var(--radius-lg)',
-                    border: isActive
-                      ? '2px solid var(--color-primary)'
-                      : '1px solid var(--color-border)',
-                    background: isActive
-                      ? 'linear-gradient(135deg, var(--color-surface) 0%, rgba(37, 99, 235, 0.08) 100%)'
-                      : 'var(--color-surface)',
-                    boxShadow: isActive
-                      ? '0 6px 20px rgba(37, 99, 235, 0.18)'
-                      : 'none',
-                    opacity: isActive ? 1.0 : 0.42,
-                    transform: isActive ? 'scale(1.015)' : 'scale(1.0)',
-                    transition: 'all 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
-                    cursor: 'pointer',
-                    overflow: 'hidden'
-                  }}
-                  title={isActive ? 'Active sentence' : 'Click to jump to this sentence'}
-                >
-                  {/* Countdown Progress Bar for Active Sentence */}
-                  {isActive && isPacerRunning && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        height: '4px',
-                        width: `${sentenceProgress}%`,
-                        background: 'linear-gradient(90deg, var(--color-primary) 0%, #38bdf8 100%)',
-                        transition: 'width 40ms linear'
-                      }}
-                    />
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          fontSize: '0.6875rem',
-                          fontWeight: 800,
-                          background: isActive ? 'var(--color-primary)' : 'var(--color-surface-sunken)',
-                          color: isActive ? '#fff' : 'var(--color-text-muted)'
-                        }}
-                      >
-                        {idx + 1}
-                      </span>
-                      {isActive && (
-                        <span
-                          style={{
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.06em',
-                            color: 'var(--color-primary)'
-                          }}
-                        >
-                          {isPacerRunning ? 'Reading...' : isSpeakingThis ? 'Speaking...' : 'Current Focus'}
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => playSingleSentence(idx, e)}
-                      title="Listen to this sentence"
+                {/* Sentence Header Line */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: '26px',
-                        height: '26px',
+                        width: '22px',
+                        height: '22px',
                         borderRadius: '50%',
-                        border: 'none',
-                        background: isSpeakingThis ? 'var(--color-primary)' : 'var(--color-surface-sunken)',
-                        color: isSpeakingThis ? '#fff' : 'var(--color-text-secondary)',
-                        cursor: 'pointer'
+                        fontSize: '0.6875rem',
+                        fontWeight: 800,
+                        background: isActive
+                          ? 'var(--color-primary)'
+                          : isPast
+                          ? 'var(--color-success)'
+                          : 'var(--color-surface-sunken)',
+                        color: isActive || isPast ? '#ffffff' : 'var(--color-text-secondary)',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <Volume2 size={13} />
-                    </button>
+                      {isPast ? <Check size={11} strokeWidth={3} /> : idx + 1}
+                    </span>
+
+                    {isActive && (
+                      <span
+                        style={{
+                          fontSize: '0.6875rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          color: 'var(--color-primary)',
+                          background: 'var(--color-primary-subtle)',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-sm)'
+                        }}
+                      >
+                        {isPacerRunning ? 'Reading...' : isSpeakingThis ? 'Speaking...' : 'Current Focus'}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Sentence Text */}
-                  <div
+                  <button
+                    type="button"
+                    onClick={(e) => playSingleSentence(idx, e)}
+                    title="Listen to this sentence"
                     style={{
-                      fontSize: textSize === 'large' ? '1.25rem' : '1.0625rem',
-                      lineHeight: 1.7,
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      letterSpacing: '0.01em'
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: isSpeakingThis ? 'var(--color-primary)' : 'var(--color-surface-sunken)',
+                      color: isSpeakingThis ? '#ffffff' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    {sentence}
-                  </div>
+                    <Volume2 size={14} />
+                  </button>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {/* VIEW MODE 2: Full Continuous Paragraph */}
-      {viewMode === 'full' && (
+                {/* Sentence Text Content - Generous line-height, zero clipping */}
+                <div
+                  style={{
+                    fontSize: textSize === 'large' ? '1.3rem' : '1.125rem',
+                    lineHeight: 1.75,
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                    letterSpacing: '0.01em',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {sentence}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* FULL STORY VIEW: Classic continuous typography with subtle sentence hover */
         <Card
           variant="default"
           padding="lg"
           style={{
-            lineHeight: textSize === 'large' ? 1.9 : 1.75,
-            fontSize: textSize === 'large' ? '1.25rem' : '1.0625rem',
+            lineHeight: textSize === 'large' ? 2.0 : 1.85,
+            fontSize: textSize === 'large' ? '1.25rem' : '1.125rem',
             color: 'var(--color-text-primary)',
             letterSpacing: '0.01em',
             background: 'var(--color-surface)',
@@ -738,32 +826,54 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             borderRadius: 'var(--radius-lg)'
           }}
         >
-          <p style={{ margin: 0 }}>
-            {passage.passageText}
-          </p>
+          <div style={{ display: 'inline' }}>
+            {sentences.map((sentence, idx) => {
+              const isActive = idx === activeSentenceIndex;
+              return (
+                <span
+                  key={idx}
+                  onClick={() => handleSelectSentence(idx)}
+                  style={{
+                    display: 'inline',
+                    padding: '2px 4px',
+                    borderRadius: '4px',
+                    background: isActive ? 'var(--color-primary-subtle)' : 'transparent',
+                    color: isActive ? 'var(--color-primary)' : 'inherit',
+                    fontWeight: isActive ? 700 : 'inherit',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease',
+                    marginRight: '6px'
+                  }}
+                  title="Click to select sentence"
+                >
+                  {sentence}
+                </span>
+              );
+            })}
+          </div>
         </Card>
       )}
 
-      {/* Key Vocabulary from Today's Story */}
+      {/* 5. Key Vocabulary from Passage */}
       {passage.vocabularyWords && passage.vocabularyWords.length > 0 && (
-        <section>
+        <section style={{ marginTop: 'var(--space-4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
             <BookOpen size={18} color="var(--color-primary)" />
             <h3 className="typography-h3">Key Vocabulary from Today's Story</h3>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 'var(--space-3)' }}>
             {passage.vocabularyWords.map((vocab) => (
-              <Card key={vocab.id} variant="default" padding="sm" style={{ borderLeft: '3px solid var(--color-primary)' }}>
+              <Card key={vocab.id} variant="default" padding="sm" style={{ borderLeft: '3px solid var(--color-primary)', background: 'var(--color-surface)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: 700, fontSize: 'var(--text-body)', color: 'var(--color-text-primary)' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>
                     {vocab.word}
                   </span>
-                  <span style={{ fontSize: 'var(--text-caption)', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
                     {vocab.phoneticIpa}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: 'var(--text-caption)', color: 'var(--color-text-secondary)' }}>
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
                   {vocab.definition}
                 </p>
               </Card>
