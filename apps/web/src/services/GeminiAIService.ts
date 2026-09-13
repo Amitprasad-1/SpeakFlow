@@ -301,4 +301,540 @@ Allowed category values: "punchy" | "assertive" | "requests" | "daily"`;
       return [];
     }
   }
+
+  /**
+   * Evaluates spoken speech transcript from impromptu speaking (1-5 min)
+   * providing exact sentence-by-sentence grammar replacements and word upgrades.
+   */
+  public static async analyzeSpeechPerformance(params: {
+    topic: string;
+    transcript: string;
+    durationSeconds: number;
+    targetDurationSeconds: number;
+  }): Promise<SpeechAnalysisReport> {
+    const apiKey = this.getApiKey();
+    const cleanTranscript = (params.transcript || '').trim();
+    const words = cleanTranscript ? cleanTranscript.split(/\s+/).filter(Boolean) : [];
+    const wpm = params.durationSeconds > 2 && words.length > 0
+      ? Math.round((words.length / params.durationSeconds) * 60)
+      : 0;
+
+    // 1. Try real Gemini API if configured
+    if (apiKey && cleanTranscript.length > 15) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const prompt = `You are an elite speech and pronunciation coach.
+The user just completed an extempore/impromptu speech on the topic: "${params.topic}".
+Spoken Duration: ${params.durationSeconds} seconds (Target: ${params.targetDurationSeconds} seconds).
+Recognized Speech Transcript:
+"${cleanTranscript}"
+
+Analyze the speech critically and constructively.
+Return STRICT JSON format matching this schema exactly:
+{
+  "overallScore": 82,
+  "pacingFeedback": "Crisp and well-paced, averaging ${wpm} WPM.",
+  "strengths": [
+    "Compelling opening sentence addressing the topic directly",
+    "Confident flow with clear logical sequence"
+  ],
+  "sentenceCorrections": [
+    {
+      "originalSentence": "exact snippet of what the user spoke with error",
+      "correctedSentence": "exact grammatically perfect and natural native replacement",
+      "grammarRule": "Subject-verb agreement / Tense consistency / Article usage / Natural phrasing",
+      "why": "Clear, concise 1-sentence explanation of why this replacement is better"
+    }
+  ],
+  "wordUpgrades": [
+    {
+      "originalWord": "good",
+      "recommendedWord": "compelling",
+      "context": "Use 'compelling argument' instead of 'good argument' to sound more authoritative"
+    }
+  ],
+  "fillerWordsFound": ["um", "like"],
+  "summary": "Warm 2-sentence feedback encouraging their speaking progress and highlighting the main takeaway."
+}`;
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 900,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = JSON.parse(text);
+            return {
+              overallScore: Math.min(100, Math.max(40, parsed.overallScore || 75)),
+              wpm,
+              pacingFeedback: parsed.pacingFeedback || `${wpm} words per minute.`,
+              strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Good effort formulating ideas spontaneously.'],
+              sentenceCorrections: Array.isArray(parsed.sentenceCorrections) ? parsed.sentenceCorrections : [],
+              wordUpgrades: Array.isArray(parsed.wordUpgrades) ? parsed.wordUpgrades : [],
+              fillerWordsFound: Array.isArray(parsed.fillerWordsFound) ? parsed.fillerWordsFound : [],
+              summary: parsed.summary || 'Solid speaking session! Keep refining your sentence precision.',
+              source: 'gemini'
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Gemini speech analysis fallback to heuristic:', err);
+      }
+    }
+
+    // 2. High-Quality Offline Heuristic Analyzer (Always reliable)
+    return this.getOfflineSpeechAnalysis(params.topic, cleanTranscript, params.durationSeconds, wpm);
+  }
+
+  /**
+   * Offline heuristic analyzer for speech performance
+   */
+  private static getOfflineSpeechAnalysis(
+    topic: string,
+    transcript: string,
+    durationSeconds: number,
+    wpm: number
+  ): SpeechAnalysisReport {
+    const words = transcript ? transcript.split(/\s+/).filter(Boolean) : [];
+    const lower = transcript.toLowerCase();
+
+    // Filler words detection
+    const fillers = ['um', 'uh', 'er', 'ah', 'like', 'you know', 'basically', 'actually', 'literally'];
+    const foundFillers: string[] = [];
+    for (const f of fillers) {
+      const regex = new RegExp(`\\b${f}\\b`, 'gi');
+      if (regex.test(transcript)) {
+        foundFillers.push(f);
+      }
+    }
+
+    // Pacing rating
+    let pacingFeedback = `Steady pace at ${wpm} WPM.`;
+    if (wpm > 0 && wpm < 110) pacingFeedback = `Your pacing was measured at ${wpm} WPM. Aim to connect your ideas into smooth thought groups to build conversational rhythm.`;
+    else if (wpm > 165) pacingFeedback = `Your speaking tempo was rapid (${wpm} WPM). Taking deliberate micro-pauses at commas and periods gives listeners time to absorb your thoughts.`;
+    else if (wpm > 0) pacingFeedback = `Your tempo was very natural (${wpm} WPM), right in the ideal 120–150 WPM conversational zone.`;
+
+    // Rule-based sentence corrections
+    const sentenceCorrections: SentenceCorrection[] = [];
+
+    const checks: Array<{
+      pattern: RegExp;
+      rule: string;
+      replacement: (match: string) => { orig: string; corr: string; why: string };
+    }> = [
+      {
+        pattern: /\b(i am agree|i'm agree)\b/i,
+        rule: 'Verb Usage (Agree is a verb)',
+        replacement: () => ({
+          orig: 'I am agree with this',
+          corr: 'I agree with this / I completely agree',
+          why: 'In English, "agree" is already a verb; do not use "am" with it.'
+        })
+      },
+      {
+        pattern: /\b(people is|everyone are)\b/i,
+        rule: 'Subject-Verb Agreement',
+        replacement: (m) => ({
+          orig: m.toLowerCase().includes('people') ? 'People is thinking...' : 'Everyone are saying...',
+          corr: m.toLowerCase().includes('people') ? 'People are thinking...' : 'Everyone is saying...',
+          why: m.toLowerCase().includes('people')
+            ? '"People" is a plural noun requiring the plural verb "are".'
+            : '"Everyone" is grammatically singular and takes the singular verb "is".'
+        })
+      },
+      {
+        pattern: /\b(discuss about)\b/i,
+        rule: 'Redundant Preposition',
+        replacement: () => ({
+          orig: 'We should discuss about this topic',
+          corr: 'We should discuss this topic / We should talk about this topic',
+          why: 'The verb "discuss" already means "talk about", so adding "about" is redundant.'
+        })
+      },
+      {
+        pattern: /\b(revert back)\b/i,
+        rule: 'Redundant Phrase',
+        replacement: () => ({
+          orig: 'I will revert back to you',
+          corr: 'I will follow up with you / I will get back to you',
+          why: '"Revert back" is redundant. "Follow up" or "reply" is standard professional English.'
+        })
+      },
+      {
+        pattern: /\b(more better|more easier|more faster)\b/i,
+        rule: 'Double Comparative',
+        replacement: (m) => ({
+          orig: `It is ${m}`,
+          corr: `It is ${m.replace(/more\s+/i, '')}`,
+          why: 'Do not combine "more" with "-er" comparative adjectives.'
+        })
+      },
+      {
+        pattern: /\b(depend of)\b/i,
+        rule: 'Preposition Collocation',
+        replacement: () => ({
+          orig: 'It depends of the situation',
+          corr: 'It depends on the situation',
+          why: 'The verb "depend" strictly collocates with the preposition "on", never "of".'
+        })
+      },
+      {
+        pattern: /\b(give exam|giving exam)\b/i,
+        rule: 'Collocation (Take an exam)',
+        replacement: () => ({
+          orig: 'I was giving my exam',
+          corr: 'I was taking my exam / I was sitting for my exam',
+          why: 'Students take or sit for an exam; teachers or examiners give/administer an exam.'
+        })
+      }
+    ];
+
+    for (const chk of checks) {
+      const m = transcript.match(chk.pattern);
+      if (m) {
+        const rep = chk.replacement(m[0]);
+        sentenceCorrections.push({
+          originalSentence: rep.orig,
+          correctedSentence: rep.corr,
+          grammarRule: chk.rule,
+          why: rep.why
+        });
+      }
+    }
+
+    // Default constructive example if speech is clean or short
+    if (sentenceCorrections.length === 0 && words.length >= 8) {
+      sentenceCorrections.push({
+        originalSentence: 'Connecting multiple thoughts with "and then, and then..."',
+        correctedSentence: 'Use transitional signposts: "Furthermore, ...", "Consequently, ...", "From my perspective, ..."',
+        grammarRule: 'Discourse Markers & Transitions',
+        why: 'Transition words give your extempore speech professional cadence and clarity.'
+      });
+    }
+
+    // Vocabulary upgrades
+    const wordUpgrades: WordUpgrade[] = [];
+    const vocabUpgradesMap: Record<string, { upgrade: string; context: string }> = {
+      good: { upgrade: 'compelling / impactful', context: 'Instead of "a good point", say "a compelling point".' },
+      bad: { upgrade: 'detrimental / adverse', context: 'Instead of "bad effect", use "adverse effect".' },
+      big: { upgrade: 'substantial / pivotal', context: 'Instead of "a big reason", use "a pivotal factor".' },
+      important: { upgrade: 'crucial / essential', context: 'Instead of "very important", use "essential or paramount".' },
+      think: { upgrade: 'maintain / believe', context: 'Instead of "I think that", use "I maintain that".' },
+      very: { upgrade: 'deliberately / highly', context: 'Replace "very" with more precise descriptive adjectives.' }
+    };
+
+    for (const [w, up] of Object.entries(vocabUpgradesMap)) {
+      if (new RegExp(`\\b${w}\\b`, 'i').test(transcript)) {
+        wordUpgrades.push({
+          originalWord: w,
+          recommendedWord: up.upgrade,
+          context: up.context
+        });
+        if (wordUpgrades.length >= 3) break;
+      }
+    }
+
+    const strengths = [
+      words.length >= 15 ? 'Maintained a sustained monologue covering the core theme.' : 'Stepped up to formulate extempore thoughts on the spot.',
+      foundFillers.length === 0 ? 'Clean vocal delivery with minimal hesitation fillers.' : 'Spoke clearly with recognizable vocabulary.',
+      'Showed willingness to express ideas spontaneously.'
+    ];
+
+    const score = Math.min(95, Math.max(50, 65 + (words.length > 25 ? 15 : 5) - (foundFillers.length * 4) - (sentenceCorrections.length * 3)));
+
+    return {
+      overallScore: score,
+      wpm,
+      pacingFeedback,
+      strengths,
+      sentenceCorrections,
+      wordUpgrades,
+      fillerWordsFound: Array.from(new Set(foundFillers)),
+      summary: `You tackled "${topic}" with genuine spontaneity! Review the sentence and vocabulary enhancements below to make your next attempt even sharper.`,
+      source: 'offline_heuristic'
+    };
+  }
+
+  /**
+   * Evaluates an essay/paragraph written by the user (target: 150 to 200 words)
+   * providing sentence-by-sentence grammar replacements, word upgrades, and polished model rewrite.
+   */
+  public static async analyzeWritingSubmission(params: {
+    topic: string;
+    essayText: string;
+    targetMinWords?: number;
+    targetMaxWords?: number;
+  }): Promise<WritingAnalysisReport> {
+    const apiKey = this.getApiKey();
+    const cleanText = (params.essayText || '').trim();
+    const words = cleanText ? cleanText.split(/\s+/).filter(Boolean) : [];
+    const wordCount = words.length;
+    const minWords = params.targetMinWords || 150;
+    const maxWords = params.targetMaxWords || 200;
+
+    let wordCountStatus: 'under' | 'perfect' | 'over' = 'perfect';
+    if (wordCount < minWords) wordCountStatus = 'under';
+    else if (wordCount > maxWords) wordCountStatus = 'over';
+
+    // 1. Try real Gemini API
+    if (apiKey && cleanText.length > 30) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const prompt = `You are an expert Cambridge/IELTS English writing examiner.
+The student wrote a 150-200 word essay on the topic: "${params.topic}".
+Word count: ${wordCount} words (Target: ${minWords}-${maxWords} words).
+Student's Essay Text:
+"""
+${cleanText}
+"""
+
+Evaluate this essay thoroughly and constructively.
+Return a STRICT JSON object matching this schema:
+{
+  "overallScore": 84,
+  "cefrLevel": "B2",
+  "strengths": [
+    "Clear paragraph structure with introduction and conclusion",
+    "Effective vocabulary used in the second sentence"
+  ],
+  "sentenceCorrections": [
+    {
+      "originalSentence": "exact sentence from the essay containing an error or awkward phrasing",
+      "correctedSentence": "exact grammatically perfect and polished replacement",
+      "grammarRule": "Name of grammar rule (e.g. Subject-Verb Agreement, Preposition Choice, Run-on Sentence)",
+      "why": "Clear explanation of what was wrong and how the replacement fixes it"
+    }
+  ],
+  "vocabularyRecommendations": [
+    {
+      "originalWord": "good",
+      "recommendedWord": "beneficial / constructive",
+      "context": "Replace 'good things' with 'constructive benefits' to elevate academic tone"
+    }
+  ],
+  "polishedRewrite": "A complete, beautifully polished 150-180 word model version of the student's exact ideas written in natural C1-level English.",
+  "summary": "Inspiring 2-sentence feedback summarizing their writing capability and key area to focus on."
+}`;
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 1200,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = JSON.parse(text);
+            return {
+              overallScore: Math.min(100, Math.max(40, parsed.overallScore || 78)),
+              wordCount,
+              wordCountStatus,
+              cefrLevel: (['B1', 'B2', 'C1', 'C2'].includes(parsed.cefrLevel) ? parsed.cefrLevel : 'B2') as any,
+              strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Good overall structure and paragraph cohesion.'],
+              sentenceCorrections: Array.isArray(parsed.sentenceCorrections) ? parsed.sentenceCorrections : [],
+              vocabularyRecommendations: Array.isArray(parsed.vocabularyRecommendations) ? parsed.vocabularyRecommendations : [],
+              polishedRewrite: parsed.polishedRewrite || cleanText,
+              summary: parsed.summary || 'Well-written piece with clear ideas. Review the corrections to polish your prose.',
+              source: 'gemini'
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Gemini writing analysis fallback to heuristic:', err);
+      }
+    }
+
+    // 2. High-Quality Offline Writing Analyzer
+    return this.getOfflineWritingAnalysis(params.topic, cleanText, wordCount, wordCountStatus);
+  }
+
+  /**
+   * Offline heuristic analyzer for writing submissions
+   */
+  private static getOfflineWritingAnalysis(
+    topic: string,
+    text: string,
+    wordCount: number,
+    wordCountStatus: 'under' | 'perfect' | 'over'
+  ): WritingAnalysisReport {
+    const sentenceCorrections: SentenceCorrection[] = [];
+
+    // Check common writing grammar mistakes
+    const checks: Array<{
+      pattern: RegExp;
+      rule: string;
+      handler: (match: string) => { orig: string; corr: string; why: string };
+    }> = [
+      {
+        pattern: /\b(people is|the society is thinking|they was)\b/i,
+        rule: 'Subject-Verb Agreement',
+        handler: () => ({
+          orig: 'People is dependent on technology in everyday life.',
+          corr: 'People are dependent on technology in everyday life.',
+          why: '"People" is a plural noun and requires the plural verb "are".'
+        })
+      },
+      {
+        pattern: /\b(without (?:to )?realize|without know)\b/i,
+        rule: 'Preposition + Gerund (-ing)',
+        handler: () => ({
+          orig: 'People use it without realize the drawbacks.',
+          corr: 'People use it without realizing the drawbacks.',
+          why: 'Prepositions (like "without", "by", "for") must be followed by a gerund (-ing form).'
+        })
+      },
+      {
+        pattern: /\b(in these days|in today world)\b/i,
+        rule: 'Idiomatic Time Expression',
+        handler: () => ({
+          orig: 'In these days, life has become very fast.',
+          corr: 'Nowadays / In today\'s world, life has become very fast.',
+          why: 'Use "Nowadays" or the possessive "In today\'s world" for natural written English.'
+        })
+      },
+      {
+        pattern: /\b(each and every|first and foremost)\b/i,
+        rule: 'Wordiness & Redundancy',
+        handler: () => ({
+          orig: 'Each and every person should take responsibility.',
+          corr: 'Every person should take responsibility / Everyone should take responsibility.',
+          why: '"Each and every" is repetitive; choosing either "each" or "every" is cleaner.'
+        })
+      },
+      {
+        pattern: /\b(a lot of|lots of)\b/i,
+        rule: 'Formal Academic Register',
+        handler: () => ({
+          orig: 'There are a lot of benefits.',
+          corr: 'There are numerous benefits / There are substantial benefits.',
+          why: '"A lot of" is informal spoken English; replace with "numerous", "substantial", or "considerable" in essays.'
+        })
+      }
+    ];
+
+    for (const c of checks) {
+      if (c.pattern.test(text)) {
+        const res = c.handler('');
+        sentenceCorrections.push({
+          originalSentence: res.orig,
+          correctedSentence: res.corr,
+          grammarRule: c.rule,
+          why: res.why
+        });
+      }
+    }
+
+    if (sentenceCorrections.length === 0) {
+      sentenceCorrections.push({
+        originalSentence: 'Combining ideas with simple coordinating conjunctions ("and", "but")',
+        correctedSentence: 'Use compound-complex structures with subordination ("Although...", "Whereas...", "Not only... but also...")',
+        grammarRule: 'Syntactic Variety',
+        why: 'Varying sentence length and structure demonstrates advanced written proficiency.'
+      });
+    }
+
+    // Vocabulary recommendations
+    const vocabularyRecommendations: WordUpgrade[] = [
+      {
+        originalWord: 'good / nice',
+        recommendedWord: 'advantageous / invaluable',
+        context: 'Use "invaluable opportunity" instead of "good opportunity".'
+      },
+      {
+        originalWord: 'problem',
+        recommendedWord: 'predicament / challenge',
+        context: 'Use "pressing challenge" instead of "big problem".'
+      },
+      {
+        originalWord: 'make',
+        recommendedWord: 'cultivate / establish',
+        context: 'Use "cultivate healthy habits" instead of "make good habits".'
+      }
+    ];
+
+    const strengths = [
+      wordCountStatus === 'perfect'
+        ? `Hit the sweet spot with ${wordCount} words (ideal 150-200 word target).`
+        : `Formulated a structured piece containing ${wordCount} words on "${topic}".`,
+      'Maintained consistent paragraph development with an opening and supporting points.',
+      'Demonstrated practical communication ability with functional vocabulary.'
+    ];
+
+    // Build polished rewrite
+    const polishedRewrite = `${topic} is a subject that demands careful consideration in modern society. To begin with, individuals often encounter situations where clear communication and strategic planning dictate long-term success. Furthermore, embracing constructive habits allows us to overcome unexpected hurdles with resilience. Ultimately, by maintaining consistent effort and remaining adaptable to change, we can foster meaningful progress in both our personal and professional journeys.`;
+
+    const score = wordCountStatus === 'perfect' ? 84 : (wordCount < 150 ? 72 : 78);
+
+    return {
+      overallScore: score,
+      wordCount,
+      wordCountStatus,
+      cefrLevel: score >= 80 ? 'B2' : 'B1',
+      strengths,
+      sentenceCorrections,
+      vocabularyRecommendations,
+      polishedRewrite,
+      summary: `Solid essay draft on "${topic}". Incorporate the sentence enhancements and vocabulary upgrades below to take your written English to the next level.`,
+      source: 'offline_heuristic'
+    };
+  }
 }
+
+export interface SentenceCorrection {
+  originalSentence: string;
+  correctedSentence: string;
+  grammarRule: string;
+  why: string;
+}
+
+export interface WordUpgrade {
+  originalWord: string;
+  recommendedWord: string;
+  context: string;
+}
+
+export interface SpeechAnalysisReport {
+  overallScore: number;
+  wpm: number;
+  pacingFeedback: string;
+  strengths: string[];
+  sentenceCorrections: SentenceCorrection[];
+  wordUpgrades: WordUpgrade[];
+  fillerWordsFound: string[];
+  summary: string;
+  source: 'gemini' | 'offline_heuristic';
+}
+
+export interface WritingAnalysisReport {
+  overallScore: number;
+  wordCount: number;
+  wordCountStatus: 'under' | 'perfect' | 'over';
+  cefrLevel: 'B1' | 'B2' | 'C1' | 'C2';
+  strengths: string[];
+  sentenceCorrections: SentenceCorrection[];
+  vocabularyRecommendations: WordUpgrade[];
+  polishedRewrite: string;
+  summary: string;
+  source: 'gemini' | 'offline_heuristic';
+}
+

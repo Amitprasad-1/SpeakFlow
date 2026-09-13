@@ -22,9 +22,13 @@ import {
   ArrowRight,
   Send,
   Zap,
-  Info
+  Info,
+  Mic,
+  PenTool
 } from 'lucide-react';
 import { VoiceWaveVisualizer } from '../common/VoiceWaveVisualizer';
+import { ImpromptuSpeakingTab } from '../speaking/ImpromptuSpeakingTab';
+import { EssayWritingTab } from '../writing/EssayWritingTab';
 
 export interface ConversationViewProps {
   onReturnToHome?: () => void;
@@ -33,6 +37,7 @@ export interface ConversationViewProps {
 export const ConversationView: React.FC<ConversationViewProps> = ({
   onReturnToHome
 }) => {
+  const [subTab, setSubTab] = useState<'speaking' | 'writing' | 'chat'>('speaking');
   const speechProvider = useMemo(() => new BrowserSpeechProvider(), []);
 
   const [selectedMode, setSelectedMode] = useState<ConversationMode>('practice');
@@ -195,8 +200,104 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: '820px', margin: '0 auto' }}>
-      {/* Header */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: '960px', margin: '0 auto' }}>
+      {/* 3-Way Mode Switcher: Impromptu Speaking | Essay Writing | Interactive Chat */}
+      <div
+        className="coach-nav-switcher"
+        style={{
+          display: 'flex',
+          background: 'var(--color-surface-sunken)',
+          padding: '4px',
+          borderRadius: 'var(--radius-pill)',
+          border: '1px solid var(--color-border)',
+          gap: '4px',
+          width: '100%',
+          maxWidth: '720px',
+          margin: '0 auto 8px auto'
+        }}
+      >
+        <button
+          onClick={() => setSubTab('speaking')}
+          className={`coach-nav-btn ${subTab === 'speaking' ? 'active' : ''}`}
+          style={{
+            flex: 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-pill)',
+            border: 'none',
+            background: subTab === 'speaking' ? 'var(--color-primary)' : 'transparent',
+            color: subTab === 'speaking' ? '#ffffff' : 'var(--color-text-secondary)',
+            fontWeight: 800,
+            fontSize: '0.8125rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <Mic size={15} />
+          <span>Speaking (1-5m)</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('writing')}
+          className={`coach-nav-btn ${subTab === 'writing' ? 'active' : ''}`}
+          style={{
+            flex: 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-pill)',
+            border: 'none',
+            background: subTab === 'writing' ? '#10b981' : 'transparent',
+            color: subTab === 'writing' ? '#ffffff' : 'var(--color-text-secondary)',
+            fontWeight: 800,
+            fontSize: '0.8125rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <PenTool size={15} />
+          <span>Writing (150-200w)</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('chat')}
+          className={`coach-nav-btn ${subTab === 'chat' ? 'active' : ''}`}
+          style={{
+            flex: 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-pill)',
+            border: 'none',
+            background: subTab === 'chat' ? 'var(--color-surface)' : 'transparent',
+            color: subTab === 'chat' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            fontWeight: 800,
+            fontSize: '0.8125rem',
+            cursor: 'pointer',
+            boxShadow: subTab === 'chat' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+            transition: 'all 0.15s ease',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <MessageSquare size={15} />
+          <span>Chat Coach</span>
+        </button>
+      </div>
+
+      {subTab === 'speaking' && <ImpromptuSpeakingTab />}
+      {subTab === 'writing' && <EssayWritingTab />}
+      {subTab === 'chat' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: '820px', margin: '0 auto', width: '100%' }}>
+          {/* Header */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
           <Badge variant="focus">Conversational Coach</Badge>
@@ -543,6 +644,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </div>
         </Card>
       )}
-    </div>
-  );
+      </div>
+    )}
+  </div>
+);
 };
