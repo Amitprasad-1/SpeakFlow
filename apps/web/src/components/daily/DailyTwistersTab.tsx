@@ -39,6 +39,12 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
   const [completedTwisters, setCompletedTwisters] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    window.speechSynthesis?.cancel();
+    setPlayingId(null);
+    setRecordingId(null);
+  }, [currentDateString]);
+
+  useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
     };

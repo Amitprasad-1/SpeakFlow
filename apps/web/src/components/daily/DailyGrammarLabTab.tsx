@@ -33,6 +33,11 @@ export const DailyGrammarLabTab: React.FC<DailyGrammarLabTabProps> = ({
   }, [currentDateString]);
 
   useEffect(() => {
+    window.speechSynthesis?.cancel();
+    setPlayingPhrase(null);
+  }, [currentDateString]);
+
+  useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
     };

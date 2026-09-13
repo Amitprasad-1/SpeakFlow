@@ -8,7 +8,10 @@ import {
   MessageSquare,
   User,
   Layers,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw
 } from 'lucide-react';
 
 export type AppNavTab = 'reading' | 'twisters' | 'grammar' | 'conversation' | 'profile' | 'progress' | 'home' | 'practice' | 'design-system';
@@ -18,6 +21,8 @@ export interface AppShellProps {
   onTabChange: (tab: AppNavTab) => void;
   themeMode: ThemeMode;
   onThemeModeChange: (mode: ThemeMode) => void;
+  currentDate?: string;
+  onDateChange?: (newDate: string) => void;
   children: React.ReactNode;
 }
 
@@ -26,8 +31,41 @@ export const AppShell: React.FC<AppShellProps> = ({
   onTabChange,
   themeMode,
   onThemeModeChange,
+  currentDate,
+  onDateChange,
   children
 }) => {
+  const todayStr = React.useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  const isToday = !currentDate || currentDate === todayStr;
+
+  const handleShiftDay = (offset: number) => {
+    if (!onDateChange) return;
+    const base = currentDate ? new Date(`${currentDate}T00:00:00`) : new Date();
+    base.setDate(base.getDate() + offset);
+    const y = base.getFullYear();
+    const m = String(base.getMonth() + 1).padStart(2, '0');
+    const d = String(base.getDate()).padStart(2, '0');
+    onDateChange(`${y}-${m}-${d}`);
+  };
+
+  const formattedDateLabel = React.useMemo(() => {
+    const active = currentDate ? new Date(`${currentDate}T00:00:00`) : new Date();
+    const today = new Date(`${todayStr}T00:00:00`);
+    const diffDays = Math.round((active.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    const dateShort = active.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    if (diffDays === 0) return `Today · ${dateShort}`;
+    if (diffDays === 1) return `Tomorrow · ${dateShort}`;
+    if (diffDays === -1) return `Yesterday · ${dateShort}`;
+    return dateShort;
+  }, [currentDate, todayStr]);
   const primaryNavItems: { id: AppNavTab; label: string; icon: any }[] = [
     { id: 'reading', label: '200-Word Reading', icon: BookOpen },
     { id: 'twisters', label: 'Tongue Twisters', icon: Zap },
@@ -137,24 +175,103 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            {/* Interactive Day Switcher */}
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: 'var(--space-1) var(--space-2-5)',
+                gap: '2px',
                 background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
                 borderRadius: 'var(--radius-pill)',
-                fontSize: 'var(--text-caption)',
-                fontWeight: 700,
-                color: 'var(--color-primary)'
+                padding: '2px 4px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
               }}
+              title="Daily Refresh: SpeakFlow automatically updates everyday! Click ◀ or ▶ to preview yesterday, today, or tomorrow."
             >
-              <Calendar size={13} />
-              <span>{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+              <button
+                type="button"
+                onClick={() => handleShiftDay(-1)}
+                aria-label="Previous Day"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '2px 6px',
+                  fontSize: 'var(--text-caption)',
+                  fontWeight: 700,
+                  color: isToday ? 'var(--color-primary)' : 'var(--color-accent)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Calendar size={13} />
+                <span>{formattedDateLabel}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleShiftDay(1)}
+                aria-label="Next Day"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >
+                <ChevronRight size={16} />
+              </button>
+
+              {!isToday && onDateChange && (
+                <button
+                  type="button"
+                  onClick={() => onDateChange(todayStr)}
+                  title="Reset to today"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-primary-light)',
+                    background: 'var(--color-primary-subtle)',
+                    color: 'var(--color-primary)',
+                    cursor: 'pointer',
+                    marginLeft: '2px'
+                  }}
+                >
+                  <RotateCcw size={10} />
+                  <span>Today</span>
+                </button>
+              )}
             </div>
+
             <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="compact" />
           </div>
         </header>

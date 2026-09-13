@@ -28,16 +28,17 @@ export interface DailyReadingTabProps {
 export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   currentDateString
 }) => {
-  // Select today's reading passage (160-200 words)
-  const [passage, setPassage] = useState<ReadingPassage>(() => {
+  // Select today's reading passage (160-200 words) dynamically based on date
+  const passage: ReadingPassage = React.useMemo(() => {
     let dayNum = new Date().getDate();
     if (currentDateString) {
       const parts = currentDateString.split('-');
       if (parts.length === 3) dayNum = parseInt(parts[2], 10) || dayNum;
     }
-    const idx = dayNum % READING_PASSAGES_CATALOG.length;
+    const safeDay = Math.abs(dayNum);
+    const idx = safeDay % READING_PASSAGES_CATALOG.length;
     return READING_PASSAGES_CATALOG[idx] || READING_PASSAGES_CATALOG[0];
-  });
+  }, [currentDateString]);
 
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.8 | 1.0>(1.0);
@@ -48,6 +49,11 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   const [estimatedWpm, setEstimatedWpm] = useState<number | null>(null);
 
   const timerRef = useRef<any>(null);
+
+  // Reset audio & reading progress when day changes
+  useEffect(() => {
+    resetPractice();
+  }, [currentDateString]);
 
   // Clean up audio on unmount
   useEffect(() => {

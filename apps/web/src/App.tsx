@@ -65,6 +65,15 @@ export const App: React.FC = () => {
     return 'dark';
   });
 
+  // 5. Active calendar date for daily learning tabs (YYYY-MM-DD)
+  const [currentDate, setCurrentDate] = useState<string>(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
+
   // Browser History Navigation Sync
   const navigateTo = (route: AppRoute) => {
     const targetPath = route === 'home' ? '/' : `/${route}`;
@@ -146,10 +155,12 @@ export const App: React.FC = () => {
       onTabChange={(tab) => navigateTo(tab)}
       themeMode={themeMode}
       onThemeModeChange={setThemeMode}
+      currentDate={currentDate}
+      onDateChange={setCurrentDate}
     >
-      {currentRoute === 'reading' && <DailyReadingTab />}
-      {currentRoute === 'twisters' && <DailyTwistersTab />}
-      {currentRoute === 'grammar' && <DailyGrammarLabTab />}
+      {currentRoute === 'reading' && <DailyReadingTab currentDateString={currentDate} />}
+      {currentRoute === 'twisters' && <DailyTwistersTab currentDateString={currentDate} />}
+      {currentRoute === 'grammar' && <DailyGrammarLabTab currentDateString={currentDate} />}
       {currentRoute === 'conversation' && (
         <ConversationView onReturnToHome={() => navigateTo('reading')} />
       )}
