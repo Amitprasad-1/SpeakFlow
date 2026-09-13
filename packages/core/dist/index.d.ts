@@ -21,4 +21,5 @@ export * from './domain/practiceSentences.js';
 export * from './domain/speakingScenarios.js';
 export * from './domain/listeningExercises.js';
 export * from './domain/baselineCatalogs.js';
+export * from './domain/dailyGrammarLab.js';
 //# sourceMappingURL=index.d.ts.map

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { AppShell, AppNavTab } from './components/layout/AppShell';
 import { ThemeMode } from './components/common/ThemeToggle';
-import { HomeView } from './components/views/HomeView';
-import { PracticeView } from './components/views/PracticeView';
+import { DailyReadingTab } from './components/daily/DailyReadingTab';
+import { DailyTwistersTab } from './components/daily/DailyTwistersTab';
+import { DailyGrammarLabTab } from './components/daily/DailyGrammarLabTab';
 import { ConversationView } from './components/views/ConversationView';
 import { ProgressView } from './components/views/ProgressView';
 import { ProfileView } from './components/views/ProfileView';
+import { HomeView } from './components/views/HomeView';
+import { PracticeView } from './components/views/PracticeView';
 import { DesignSystemView } from './components/views/DesignSystemView';
 import { OnboardingContainer } from './components/onboarding/OnboardingContainer';
 import { demoUser, UserProfileData } from './data/demoData';
@@ -17,19 +20,11 @@ export const App: React.FC = () => {
   const [currentRoute, setCurrentRoute] = useState<AppRoute>(() => {
     if (typeof window !== 'undefined') {
       const routeFromUrl = getRouteFromPathname(window.location.pathname);
-      // If direct URL is /onboarding, respect it immediately
       if (routeFromUrl === 'onboarding') return 'onboarding';
       if (window.location.hash === '#onboarding') return 'onboarding';
-      if (routeFromUrl !== 'home') return routeFromUrl;
-
-      // If at root '/' or '/home', check if user has ever completed onboarding or skipped
-      const savedProfile = BrowserStorage.getUserProfile();
-      if (!savedProfile || !savedProfile.isOnboarded) {
-        return 'onboarding';
-      }
-      return 'home';
+      return routeFromUrl || 'reading';
     }
-    return 'home';
+    return 'reading';
   });
 
   // 2. User profile from BrowserStorage or demoUser
@@ -152,6 +147,20 @@ export const App: React.FC = () => {
       themeMode={themeMode}
       onThemeModeChange={setThemeMode}
     >
+      {currentRoute === 'reading' && <DailyReadingTab />}
+      {currentRoute === 'twisters' && <DailyTwistersTab />}
+      {currentRoute === 'grammar' && <DailyGrammarLabTab />}
+      {currentRoute === 'conversation' && (
+        <ConversationView onReturnToHome={() => navigateTo('reading')} />
+      )}
+      {currentRoute === 'profile' && (
+        <ProfileView
+          user={user}
+          themeMode={themeMode}
+          onThemeModeChange={setThemeMode}
+          onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+        />
+      )}
       {currentRoute === 'home' && (
         <HomeView
           user={user}
@@ -163,33 +172,11 @@ export const App: React.FC = () => {
       )}
       {currentRoute === 'practice' && (
         <PracticeView
-          onReturnToHome={() => navigateTo('home')}
-          onSessionComplete={() => {
-            // Refresh user state from storage
-            const updatedProfile = BrowserStorage.getUserProfile();
-            if (updatedProfile) {
-              setUser((prev) => ({
-                ...prev,
-                name: updatedProfile.name,
-                level: updatedProfile.level
-              }));
-            }
-          }}
+          onReturnToHome={() => navigateTo('reading')}
+          onSessionComplete={() => {}}
         />
-      )}
-      {currentRoute === 'conversation' && (
-        <ConversationView onReturnToHome={() => navigateTo('home')} />
       )}
       {currentRoute === 'progress' && <ProgressView />}
-      {currentRoute === 'profile' && (
-        <ProfileView
-          user={user}
-          themeMode={themeMode}
-          onThemeModeChange={setThemeMode}
-          onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
-          onRetakeAssessment={() => navigateTo('onboarding')}
-        />
-      )}
       {currentRoute === 'design-system' && <DesignSystemView />}
     </AppShell>
   );

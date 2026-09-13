@@ -37,4 +37,5 @@ __exportStar(require("./domain/practiceSentences.js"), exports);
 __exportStar(require("./domain/speakingScenarios.js"), exports);
 __exportStar(require("./domain/listeningExercises.js"), exports);
 __exportStar(require("./domain/baselineCatalogs.js"), exports);
+__exportStar(require("./domain/dailyGrammarLab.js"), exports);
 //# sourceMappingURL=index.js.map

@@ -2,15 +2,16 @@ import React from 'react';
 import { BrandLogo } from '../common/BrandLogo';
 import { ThemeToggle, ThemeMode } from '../common/ThemeToggle';
 import {
-  Home,
-  Mic,
-  BarChart3,
+  BookOpen,
+  Zap,
+  Sparkles,
+  MessageSquare,
   User,
   Layers,
-  MessageSquare
+  Calendar
 } from 'lucide-react';
 
-export type AppNavTab = 'home' | 'practice' | 'conversation' | 'progress' | 'profile' | 'design-system';
+export type AppNavTab = 'reading' | 'twisters' | 'grammar' | 'conversation' | 'profile' | 'progress' | 'home' | 'practice' | 'design-system';
 
 export interface AppShellProps {
   activeTab: AppNavTab;
@@ -28,11 +29,11 @@ export const AppShell: React.FC<AppShellProps> = ({
   children
 }) => {
   const primaryNavItems: { id: AppNavTab; label: string; icon: any }[] = [
-    { id: 'home', label: 'Home', icon: Home },
-    { id: 'practice', label: 'Practice', icon: Mic },
+    { id: 'reading', label: '200-Word Reading', icon: BookOpen },
+    { id: 'twisters', label: 'Tongue Twisters', icon: Zap },
+    { id: 'grammar', label: 'Words & Grammar', icon: Sparkles },
     { id: 'conversation', label: 'AI Coach', icon: MessageSquare },
-    { id: 'progress', label: 'Progress', icon: BarChart3 },
-    { id: 'profile', label: 'Profile', icon: User }
+    { id: 'profile', label: 'Profile & Settings', icon: User }
   ];
 
   return (
@@ -118,13 +119,42 @@ export const AppShell: React.FC<AppShellProps> = ({
               <BrandLogo size="sm" showTagline={false} />
             </div>
 
-            {/* Desktop section breadcrumb */}
-            <h2 className="typography-h3" style={{ textTransform: 'capitalize' }}>
-              {activeTab === 'design-system' ? 'Design System Showcase' : activeTab}
-            </h2>
+            {/* Section title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <h2 className="typography-h3">
+                {activeTab === 'reading'
+                  ? 'Daily 200-Word Reading'
+                  : activeTab === 'twisters'
+                  ? 'Tongue Twisters'
+                  : activeTab === 'grammar'
+                  ? 'Words & Grammar Lab'
+                  : activeTab === 'conversation'
+                  ? 'Conversational AI Coach'
+                  : activeTab === 'profile'
+                  ? 'Profile & Settings'
+                  : activeTab}
+              </h2>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: 'var(--space-1) var(--space-2-5)',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-pill)',
+                fontSize: 'var(--text-caption)',
+                fontWeight: 700,
+                color: 'var(--color-primary)'
+              }}
+            >
+              <Calendar size={13} />
+              <span>{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            </div>
             <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="compact" />
           </div>
         </header>
