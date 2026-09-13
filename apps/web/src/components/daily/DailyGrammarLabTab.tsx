@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Compass
 } from 'lucide-react';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export interface DailyGrammarLabTabProps {
   currentDateString?: string;
@@ -33,30 +34,24 @@ export const DailyGrammarLabTab: React.FC<DailyGrammarLabTabProps> = ({
   }, [currentDateString]);
 
   useEffect(() => {
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     setPlayingPhrase(null);
   }, [currentDateString]);
 
   useEffect(() => {
     return () => {
-      window.speechSynthesis?.cancel();
+      stopSpeaking();
     };
   }, []);
 
   const playAudio = (text: string, phraseName: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
     setPlayingPhrase(phraseName);
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-
-    utterance.onend = () => setPlayingPhrase(null);
-    utterance.onerror = () => setPlayingPhrase(null);
-
-    window.speechSynthesis.speak(utterance);
+    speakText(text, {
+      rate: 0.9,
+      pitch: 1.0,
+      onEnd: () => setPlayingPhrase(null),
+      onError: () => setPlayingPhrase(null)
+    });
   };
 
   return (

@@ -22,6 +22,7 @@ import {
   Video
 } from 'lucide-react';
 import { ReadingVideoRecorder } from './ReadingVideoRecorder';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export interface DailyReadingTabProps {
   currentDateString?: string;
@@ -322,13 +323,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   // Play single sentence audio on demand
   const playSingleAudio = (idx: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(sentences[idx]);
-    utterance.rate = getSpeechRate(pacerSpeed);
-    utterance.pitch = 1.0;
-    window.speechSynthesis.speak(utterance);
+    if (sentences[idx]) {
+      speakText(sentences[idx], { rate: getSpeechRate(pacerSpeed) });
+    }
   };
 
   return (

@@ -18,10 +18,12 @@ import {
   Search,
   RefreshCw,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Volume2
 } from 'lucide-react';
 import { GeminiAIService, WritingAnalysisReport } from '../../services/GeminiAIService';
 import { EXTENSIVE_WRITING_TOPICS, WRITING_CATEGORIES, WritingTopicItem } from '../../data/topicCatalog';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export const EssayWritingTab: React.FC = () => {
   // Topic Catalog & AI Generation
@@ -37,6 +39,14 @@ export const EssayWritingTab: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [report, setReport] = useState<WritingAnalysisReport | null>(null);
   const [copiedRewrite, setCopiedRewrite] = useState<boolean>(false);
+  const [isPlayingRewrite, setIsPlayingRewrite] = useState<boolean>(false);
+  const [playingCorrectionIdx, setPlayingCorrectionIdx] = useState<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
 
   // Target word count: 150 to 200 words
   const minTarget = 150;
@@ -849,12 +859,44 @@ export const EssayWritingTab: React.FC = () => {
                     </div>
 
                     {/* Recommended replacement */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
-                      <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.875rem', width: '20px' }}>✅</span>
-                      <div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)' }}>Recommended replacement: </span>
-                        <span style={{ fontSize: '0.9375rem', color: '#059669', fontWeight: 800 }}>"{corr.correctedSentence}"</span>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                        <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.875rem', width: '20px', flexShrink: 0 }}>✅</span>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)' }}>Recommended replacement: </span>
+                          <span style={{ fontSize: '0.9375rem', color: '#059669', fontWeight: 800, wordBreak: 'break-word' }}>"{corr.correctedSentence}"</span>
+                        </div>
                       </div>
+
+                      <button
+                        onClick={() => {
+                          setPlayingCorrectionIdx(idx);
+                          speakText(corr.correctedSentence, {
+                            rate: 0.92,
+                            onEnd: () => setPlayingCorrectionIdx(null),
+                            onError: () => setPlayingCorrectionIdx(null)
+                          });
+                        }}
+                        className="tap-interactive"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 10px',
+                          borderRadius: 'var(--radius-pill)',
+                          background: playingCorrectionIdx === idx ? '#10b981' : 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                          color: playingCorrectionIdx === idx ? '#ffffff' : '#059669',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          flexShrink: 0
+                        }}
+                        title="Listen to native pronunciation of this recommendation"
+                      >
+                        <Volume2 size={13} />
+                        <span>{playingCorrectionIdx === idx ? 'Playing...' : 'Listen'}</span>
+                      </button>
                     </div>
 
                     {/* Why */}
@@ -929,26 +971,61 @@ export const EssayWritingTab: React.FC = () => {
                 </h3>
               </div>
 
-              <button
-                onClick={() => handleCopyRewrite(report.polishedRewrite)}
-                className="tap-interactive"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-pill)',
-                  background: 'var(--color-surface-sunken)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                {copiedRewrite ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-                <span>{copiedRewrite ? 'Copied to Clipboard!' : 'Copy Rewrite'}</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    if (isPlayingRewrite) {
+                      stopSpeaking();
+                      setIsPlayingRewrite(false);
+                    } else {
+                      setIsPlayingRewrite(true);
+                      speakText(report.polishedRewrite, {
+                        rate: 0.95,
+                        onEnd: () => setIsPlayingRewrite(false),
+                        onError: () => setIsPlayingRewrite(false)
+                      });
+                    }
+                  }}
+                  className="tap-interactive"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: isPlayingRewrite ? '#10b981' : 'var(--color-surface-sunken)',
+                    border: '1px solid var(--color-border)',
+                    color: isPlayingRewrite ? '#ffffff' : 'var(--color-text-secondary)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Volume2 size={14} />
+                  <span>{isPlayingRewrite ? 'Stop Audio' : 'Listen to Essay'}</span>
+                </button>
+
+                <button
+                  onClick={() => handleCopyRewrite(report.polishedRewrite)}
+                  className="tap-interactive"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'var(--color-surface-sunken)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {copiedRewrite ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                  <span>{copiedRewrite ? 'Copied to Clipboard!' : 'Copy Rewrite'}</span>
+                </button>
+              </div>
             </div>
 
             <div

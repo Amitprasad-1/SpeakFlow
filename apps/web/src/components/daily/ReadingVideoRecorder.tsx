@@ -22,6 +22,7 @@ import {
   MessageSquareQuote,
   Clock
 } from 'lucide-react';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export interface ReadingVideoRecorderProps {
   isOpen: boolean;
@@ -369,15 +370,13 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
 
   // Listen to native model pronunciation
   const playModelAudio = (sentence: string, idx: number) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(sentence);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
     setSpeakingSentenceIdx(idx);
-    utterance.onend = () => setSpeakingSentenceIdx(null);
-    utterance.onerror = () => setSpeakingSentenceIdx(null);
-    window.speechSynthesis.speak(utterance);
+    speakText(sentence, {
+      rate: 0.95,
+      pitch: 1.0,
+      onEnd: () => setSpeakingSentenceIdx(null),
+      onError: () => setSpeakingSentenceIdx(null)
+    });
   };
 
   // Format seconds to mm:ss

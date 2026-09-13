@@ -13,6 +13,7 @@ import {
   Flame,
   ArrowRight
 } from 'lucide-react';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export interface SpeechLabExample {
   id: string;
@@ -102,27 +103,21 @@ export const QuickSpeechLab: React.FC = () => {
 
   // Speech synthesis helper
   const playAudio = (text: string, type: 'A' | 'B' | 'sentence') => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
     setPlayingWord(type);
     setIsPlayingAudio(true);
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.88; // Slightly measured for clear learning
-    utterance.pitch = 1.0;
-
-    utterance.onend = () => {
-      setIsPlayingAudio(false);
-      setPlayingWord(null);
-    };
-
-    utterance.onerror = () => {
-      setIsPlayingAudio(false);
-      setPlayingWord(null);
-    };
-
-    window.speechSynthesis.speak(utterance);
+    speakText(text, {
+      rate: 0.88,
+      pitch: 1.0,
+      onEnd: () => {
+        setIsPlayingAudio(false);
+        setPlayingWord(null);
+      },
+      onError: () => {
+        setIsPlayingAudio(false);
+        setPlayingWord(null);
+      }
+    });
   };
 
   // Simulate or execute speech recognition

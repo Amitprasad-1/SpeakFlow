@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { GeminiAIService, SpeechAnalysisReport } from '../../services/GeminiAIService';
 import { EXTENSIVE_SPEAKING_TOPICS, SPEAKING_CATEGORIES, SpeakingTopicItem } from '../../data/topicCatalog';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export const ImpromptuSpeakingTab: React.FC = () => {
   // Topic Catalog & Dynamic AI Generation
@@ -53,8 +54,8 @@ export const ImpromptuSpeakingTab: React.FC = () => {
 
   // Streams & Recording
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-  const [recordedMediaUrl, setRecordedMediaUrl] = useState<string | null>(null);
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
+  const [recordedMediaUrl, setRecordedMediaUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const liveVideoPreviewRef = useRef<HTMLVideoElement | null>(null);
@@ -73,11 +74,13 @@ export const ImpromptuSpeakingTab: React.FC = () => {
 
   // AI Feedback Report
   const [report, setReport] = useState<SpeechAnalysisReport | null>(null);
+  const [playingCorrectionIdx, setPlayingCorrectionIdx] = useState<number | null>(null);
 
   // Cleanup media on unmount
   useEffect(() => {
     return () => {
       stopMediaTracks();
+      stopSpeaking();
       if (speechRecognitionRef.current) {
         try { speechRecognitionRef.current.stop(); } catch {}
       }
@@ -1747,12 +1750,44 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     </div>
 
                     {/* Recommended replacement */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
-                      <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.875rem', width: '20px' }}>✅</span>
-                      <div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)' }}>Recommended replacement: </span>
-                        <span style={{ fontSize: '0.9375rem', color: '#059669', fontWeight: 800 }}>"{corr.correctedSentence}"</span>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                        <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.875rem', width: '20px', flexShrink: 0 }}>✅</span>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)' }}>Recommended replacement: </span>
+                          <span style={{ fontSize: '0.9375rem', color: '#059669', fontWeight: 800, wordBreak: 'break-word' }}>"{corr.correctedSentence}"</span>
+                        </div>
                       </div>
+
+                      <button
+                        onClick={() => {
+                          setPlayingCorrectionIdx(idx);
+                          speakText(corr.correctedSentence, {
+                            rate: 0.92,
+                            onEnd: () => setPlayingCorrectionIdx(null),
+                            onError: () => setPlayingCorrectionIdx(null)
+                          });
+                        }}
+                        className="tap-interactive"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 10px',
+                          borderRadius: 'var(--radius-pill)',
+                          background: playingCorrectionIdx === idx ? 'var(--color-primary)' : 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                          color: playingCorrectionIdx === idx ? '#ffffff' : 'var(--color-primary)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          flexShrink: 0
+                        }}
+                        title="Listen to native pronunciation of this recommendation"
+                      >
+                        <Volume2 size={13} />
+                        <span>{playingCorrectionIdx === idx ? 'Playing...' : 'Listen'}</span>
+                      </button>
                     </div>
 
                     {/* Why */}

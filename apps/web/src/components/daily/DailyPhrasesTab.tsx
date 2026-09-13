@@ -32,6 +32,7 @@ import {
   Calendar,
   BookOpen
 } from 'lucide-react';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export interface DailyPhrasesTabProps {
   currentDateString?: string;
@@ -176,19 +177,13 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
 
   // Audio playback
   const handlePlayAudio = (phrase: HindiEnglishPhrase) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
     setPlayingId(phrase.id);
-
-    const utterance = new SpeechSynthesisUtterance(phrase.english);
-    utterance.rate = 0.95;
-    utterance.lang = 'en-US';
-
-    utterance.onend = () => setPlayingId(null);
-    utterance.onerror = () => setPlayingId(null);
-
-    window.speechSynthesis.speak(utterance);
+    speakText(phrase.english, {
+      rate: 0.95,
+      pitch: 1.0,
+      onEnd: () => setPlayingId(null),
+      onError: () => setPlayingId(null)
+    });
   };
 
   // Speech Practice

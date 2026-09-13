@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   RotateCw
 } from 'lucide-react';
+import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
 export interface DailyTwistersTabProps {
   currentDateString?: string;
@@ -39,31 +40,25 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
   const [completedTwisters, setCompletedTwisters] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     setPlayingId(null);
     setRecordingId(null);
   }, [currentDateString]);
 
   useEffect(() => {
     return () => {
-      window.speechSynthesis?.cancel();
+      stopSpeaking();
     };
   }, []);
 
   const playTwister = (twister: TongueTwister, speed: 0.75 | 1.0 | 1.25) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
     setPlayingId(twister.id);
-
-    const utterance = new SpeechSynthesisUtterance(twister.text);
-    utterance.rate = speed;
-    utterance.pitch = 1.0;
-
-    utterance.onend = () => setPlayingId(null);
-    utterance.onerror = () => setPlayingId(null);
-
-    window.speechSynthesis.speak(utterance);
+    speakText(twister.text, {
+      rate: speed,
+      pitch: 1.0,
+      onEnd: () => setPlayingId(null),
+      onError: () => setPlayingId(null)
+    });
   };
 
   const handleToggleRecord = (id: string) => {

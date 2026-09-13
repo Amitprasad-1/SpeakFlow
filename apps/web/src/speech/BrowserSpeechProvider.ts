@@ -189,44 +189,19 @@ export class BrowserSpeechProvider implements SpeechProvider {
   }
 
   public synthesizeSpeech(text: string, options?: TTSOptions): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (typeof window === 'undefined' || !window.speechSynthesis) {
-        console.warn('SpeechSynthesis not supported.');
-        resolve();
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = options?.rate ?? 1.0;
-      utterance.pitch = options?.pitch ?? 1.0;
-      utterance.lang = options?.lang ?? 'en-US';
-
-      // Pick high quality English voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const englishVoice = voices.find(
-        (v) => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel'))
-      ) || voices.find((v) => v.lang.startsWith('en'));
-
-      if (englishVoice) {
-        utterance.voice = englishVoice;
-      }
-
-      utterance.onend = () => resolve();
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
-        resolve(); // resolve gracefully so UI does not hang
-      };
-
-      window.speechSynthesis.speak(utterance);
+    return new Promise((resolve) => {
+      speakText(text, {
+        rate: options?.rate ?? 1.0,
+        pitch: options?.pitch ?? 1.0,
+        lang: options?.lang ?? 'en-US',
+        onEnd: () => resolve(),
+        onError: () => resolve()
+      });
     });
   }
 
   public cancelSynthesis(): void {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    stopSpeaking();
   }
 
   public subscribeVisualizer(callback: (data: AudioVisualizerData) => void): () => void {
@@ -303,3 +278,77 @@ export class BrowserSpeechProvider implements SpeechProvider {
     }
   }
 }
+
+export interface SpeakOptions {
+  rate?: number;
+  pitch?: number;
+  lang?: string;
+  onStart?: () => void;
+  onEnd?: () => void;
+  onError?: (err: any) => void;
+}
+
+export function speakText(text: string, options?: SpeakOptions): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    options?.onError?.(new Error('SpeechSynthesis not supported'));
+    return;
+  }
+
+  try {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = options?.rate ?? 0.95;
+    utterance.pitch = options?.pitch ?? 1.0;
+    utterance.lang = options?.lang ?? 'en-US';
+
+    // Pick best natural English voice if available
+    try {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        const langCode = options?.lang || 'en';
+        const preferredVoice = voices.find(
+          (v) => v.lang.startsWith(langCode) && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Karen'))
+        ) || voices.find((v) => v.lang.startsWith(langCode));
+
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+      }
+    } catch {}
+
+    // Retain global reference to avoid Chromium garbage collection bug during long speech
+    (window as any).__speakflowActiveUtterance = utterance;
+
+    utterance.onstart = () => {
+      options?.onStart?.();
+    };
+
+    utterance.onend = () => {
+      (window as any).__speakflowActiveUtterance = null;
+      options?.onEnd?.();
+    };
+
+    utterance.onerror = (e) => {
+      console.warn('SpeechSynthesis error:', e);
+      (window as any).__speakflowActiveUtterance = null;
+      options?.onError?.(e);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn('speakText invocation error:', err);
+    options?.onError?.(err);
+  }
+}
+
+export function stopSpeaking(): void {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+      (window as any).__speakflowActiveUtterance = null;
+    } catch {}
+  }
+}
+
