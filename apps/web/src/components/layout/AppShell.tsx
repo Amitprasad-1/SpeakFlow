@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrandLogo } from '../common/BrandLogo';
 import { ThemeToggle, ThemeMode } from '../common/ThemeToggle';
+import { InstallAppButton } from '../common/InstallAppButton';
 import {
   BookOpen,
   Zap,
@@ -295,6 +296,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               )}
             </div>
 
+            <InstallAppButton />
             <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="compact" />
           </div>
         </header>

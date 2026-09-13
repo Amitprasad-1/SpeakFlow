@@ -9,7 +9,8 @@ import {
   StreakData,
   ProgressSummaryData
 } from '../../data/demoData';
-import { Shield, CheckCircle2, UserCheck, Clock, Flame, Award } from 'lucide-react';
+import { Shield, CheckCircle2, UserCheck, Clock, Flame, Award, Smartphone } from 'lucide-react';
+import { InstallAppButton } from '../common/InstallAppButton';
 
 import { BrowserStorage } from '../../storage/BrowserStorage';
 
@@ -201,6 +202,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </Card>
       </div>
+
+      {/* Standalone Native App Installation */}
+      <Card variant="elevated" padding="lg">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <Smartphone size={18} color="var(--color-primary)" />
+              <h3 className="typography-h3" style={{ margin: 0 }}>Install SpeakFlow App</h3>
+            </div>
+            <p className="typography-body-sm" style={{ color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5 }}>
+              Install SpeakFlow as a native app on your phone or laptop for full-screen practice without browser address bars, fast launching, and offline support.
+            </p>
+          </div>
+          <InstallAppButton />
+        </div>
+      </Card>
 
       {/* Voice Privacy Notice */}
       <Card variant="default" padding="md">

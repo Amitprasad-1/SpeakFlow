@@ -12,3 +12,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </AppProvider>
   </React.StrictMode>
 );
+
+// Register Progressive Web App Service Worker for native app installation
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !window.location.hostname.includes('localhost.skip')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('ServiceWorker registration error:', err);
+    });
+  });
+}
