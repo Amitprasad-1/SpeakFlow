@@ -12,7 +12,7 @@
 }
 
 .sidebar {
-  width: 260px;
+  width: 68px;
   background-color: var(--color-bg-subtle);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -21,31 +21,52 @@
   top: 0;
   height: 100vh;
   z-index: 40;
-  transition: width var(--motion-duration-normal) var(--motion-ease-out);
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
+  overflow-x: hidden;
+  white-space: nowrap;
+}
+
+.sidebar:hover,
+.sidebar.expanded {
+  width: 250px;
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.22);
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-6);
+  justify-content: center;
+  padding: var(--space-4) 10px;
   text-decoration: none;
   border-bottom: 1px solid var(--color-border-subtle);
+  min-height: 64px;
+  transition: padding 0.2s ease, justify-content 0.2s ease;
+}
+
+.sidebar:hover .sidebar-logo,
+.sidebar.expanded .sidebar-logo {
+  justify-content: flex-start;
+  padding: var(--space-4) var(--space-5);
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-4) var(--space-3);
+  padding: var(--space-4) 8px;
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2-5) var(--space-3);
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 0;
+  width: 48px;
+  margin: 0 auto;
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
@@ -53,7 +74,41 @@
   font-weight: var(--text-nav-weight);
   transition: all var(--motion-duration-fast) var(--motion-ease-out);
   text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.sidebar:hover .nav-item,
+.sidebar.expanded .nav-item {
+  justify-content: flex-start;
+  padding: 10px 14px;
   width: 100%;
+  margin: 0;
+}
+
+.nav-item svg {
+  flex-shrink: 0;
+}
+
+.sidebar.folded .nav-item span,
+.sidebar:not(:hover):not(.expanded) .nav-item span {
+  opacity: 0;
+  pointer-events: none;
+  max-width: 0;
+  overflow: hidden;
+  display: inline-block;
+  transition: opacity 0.15s ease, max-width 0.25s ease;
+}
+
+.sidebar.expanded .nav-item span,
+.sidebar:hover .nav-item span {
+  opacity: 1;
+  pointer-events: auto;
+  max-width: 190px;
+  display: inline-block;
+  transition: opacity 0.25s ease 0.05s, max-width 0.28s ease;
 }
 
 .nav-item:hover {
@@ -65,6 +120,7 @@
   background-color: var(--color-primary-subtle);
   color: var(--color-primary);
   font-weight: 600;
+  border-color: rgba(14, 165, 233, 0.25);
 }
 
 .main-wrapper {

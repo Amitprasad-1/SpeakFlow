@@ -74,12 +74,19 @@ export const AppShell: React.FC<AppShellProps> = ({
     { id: 'profile', label: 'Profile & Settings', icon: User }
   ];
 
+  const [isSidebarHovered, setIsSidebarHovered] = React.useState(false);
+
   return (
     <div className="app-container">
-      {/* Desktop Sidebar Navigation */}
-      <aside className="sidebar">
+      {/* Desktop Sidebar Navigation (Folded by default, unfolds smoothly on hover) */}
+      <aside
+        className={`sidebar ${isSidebarHovered ? 'expanded' : 'folded'}`}
+        onMouseEnter={() => setIsSidebarHovered(true)}
+        onMouseLeave={() => setIsSidebarHovered(false)}
+        aria-label="Sidebar Navigation"
+      >
         <div className="sidebar-logo">
-          <BrandLogo size="md" showTagline={true} />
+          <BrandLogo size="md" showTagline={isSidebarHovered} collapsed={!isSidebarHovered} />
         </div>
 
         <nav className="sidebar-nav" aria-label="Main Navigation">
@@ -92,6 +99,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 className={`nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => onTabChange(item.id)}
                 id={`sidebar-nav-${item.id}`}
+                title={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
                 <Icon size={19} />
@@ -102,24 +110,27 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           {/* Design System Preview Link */}
           <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border-subtle)' }}>
-            <span
-              style={{
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'var(--color-text-muted)',
-                paddingLeft: 'var(--space-3)',
-                display: 'block',
-                marginBottom: 'var(--space-1)'
-              }}
-            >
-              Developer Preview
-            </span>
+            {isSidebarHovered && (
+              <span
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: 'var(--color-text-muted)',
+                  paddingLeft: 'var(--space-3)',
+                  display: 'block',
+                  marginBottom: 'var(--space-1)'
+                }}
+              >
+                Developer Preview
+              </span>
+            )}
             <button
               className={`nav-item ${activeTab === 'design-system' ? 'active' : ''}`}
               onClick={() => onTabChange('design-system')}
               id="sidebar-nav-design-system"
+              title="UI Kit (Developer Preview)"
             >
               <Layers size={18} color="var(--color-accent)" />
               <span>UI Kit</span>
@@ -128,22 +139,34 @@ export const AppShell: React.FC<AppShellProps> = ({
         </nav>
 
         {/* Sidebar Consistent Theme Control */}
-        <div style={{ padding: 'var(--space-4)', borderTop: '1px solid var(--color-border-subtle)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            <span
-              style={{
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'var(--color-text-muted)',
-                paddingLeft: 'var(--space-1)'
-              }}
-            >
-              Theme
-            </span>
-            <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="segmented" />
-          </div>
+        <div
+          style={{
+            padding: isSidebarHovered ? 'var(--space-4)' : 'var(--space-3) 8px',
+            borderTop: '1px solid var(--color-border-subtle)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+        >
+          {isSidebarHovered ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', width: '100%' }}>
+              <span
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: 'var(--color-text-muted)',
+                  paddingLeft: 'var(--space-1)'
+                }}
+              >
+                Theme
+              </span>
+              <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="segmented" />
+            </div>
+          ) : (
+            <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="compact" iconOnly={true} />
+          )}
         </div>
       </aside>
 

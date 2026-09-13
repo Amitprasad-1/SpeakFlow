@@ -7,6 +7,7 @@ export interface ThemeToggleProps {
   mode: ThemeMode;
   onModeChange: (mode: ThemeMode) => void;
   variant?: 'segmented' | 'compact';
+  iconOnly?: boolean;
   className?: string;
 }
 
@@ -14,6 +15,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
   mode,
   onModeChange,
   variant = 'segmented',
+  iconOnly = false,
   className = ''
 }) => {
   const options: { value: ThemeMode; label: string; icon: any }[] = [
@@ -40,18 +42,22 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 'var(--space-2)',
-          padding: 'var(--space-2) var(--space-3)',
+          justifyContent: 'center',
+          gap: iconOnly ? '0' : 'var(--space-2)',
+          padding: iconOnly ? '8px' : 'var(--space-2) var(--space-3)',
+          width: iconOnly ? '40px' : 'auto',
+          height: iconOnly ? '40px' : 'auto',
           borderRadius: 'var(--radius-md)',
           fontSize: 'var(--text-caption)',
           fontWeight: 600,
-          color: 'var(--color-text-secondary)'
+          color: 'var(--color-text-secondary)',
+          cursor: 'pointer'
         }}
         title={`Theme: ${currentOption.label} (Click to change)`}
         aria-label={`Current theme: ${currentOption.label}. Click to switch theme.`}
       >
-        <Icon size={16} />
-        <span>Theme: {currentOption.label}</span>
+        <Icon size={18} />
+        {!iconOnly && <span>Theme: {currentOption.label}</span>}
       </button>
     );
   }
