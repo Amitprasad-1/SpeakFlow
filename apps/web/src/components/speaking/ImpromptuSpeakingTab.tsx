@@ -93,28 +93,84 @@ export const ImpromptuSpeakingTab: React.FC = () => {
     }
   };
 
-  // Setup camera & mic stream
+  // Helper to reliably attach and play camera video stream
+  const attachStreamToVideo = useCallback((videoEl: HTMLVideoElement | null, stream: MediaStream | null) => {
+    if (!videoEl || !stream) return;
+    try {
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+      }
+      videoEl.muted = true;
+      const playPromise = videoEl.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn('Webcam video play() catch:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('Error attaching stream to video element:', err);
+    }
+  }, []);
+
+  // Callback ref: executes the exact moment the <video> element mounts to DOM
+  const setLiveVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    liveVideoPreviewRef.current = node;
+    if (node && mediaStream && recordMode === 'video') {
+      attachStreamToVideo(node, mediaStream);
+    }
+  }, [mediaStream, recordMode, attachStreamToVideo]);
+
+  // Synchronize stream whenever phase changes to speaking or mediaStream changes
+  useEffect(() => {
+    if (phase === 'speaking' && recordMode === 'video' && mediaStream) {
+      if (liveVideoPreviewRef.current) {
+        attachStreamToVideo(liveVideoPreviewRef.current, mediaStream);
+      }
+    }
+  }, [phase, recordMode, mediaStream, attachStreamToVideo]);
+
+  // Setup camera & mic stream with flexible fallbacks
   const initializeMedia = async (mode: 'audio' | 'video'): Promise<MediaStream | null> => {
     try {
       stopMediaTracks();
-      const constraints: MediaStreamConstraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        },
-        video: mode === 'video' ? {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        } : false
-      };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream: MediaStream | null = null;
+      if (mode === 'video') {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            },
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: 'user'
+            }
+          });
+        } catch (strictErr) {
+          console.warn('High-res webcam constraints failed, trying basic video constraints:', strictErr);
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+          });
+        }
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: false
+        });
+      }
+
       setMediaStream(stream);
 
-      if (liveVideoPreviewRef.current && mode === 'video') {
-        liveVideoPreviewRef.current.srcObject = stream;
+      if (liveVideoPreviewRef.current && mode === 'video' && stream) {
+        attachStreamToVideo(liveVideoPreviewRef.current, stream);
       }
 
       // Audio visualizer setup
@@ -199,23 +255,31 @@ export const ImpromptuSpeakingTab: React.FC = () => {
     setLiveTranscript('');
     finalTranscriptRef.current = '';
     recordedChunksRef.current = [];
-    setPhase('speaking');
-
     let activeStream = mediaStream;
-    if (!activeStream) {
+    const hasLiveVideo = activeStream && activeStream.getVideoTracks().some(t => t.readyState === 'live');
+    const hasLiveAudio = activeStream && activeStream.getAudioTracks().some(t => t.readyState === 'live');
+
+    if (!activeStream || (recordMode === 'video' && !hasLiveVideo) || !hasLiveAudio) {
       activeStream = await initializeMedia(recordMode);
     }
 
     if (!activeStream) {
-      alert('Unable to access microphone/camera. Please allow permissions.');
+      alert('Unable to access microphone/camera. Please allow permissions in your browser.');
       setPhase('setup');
       return;
     }
 
-    // Connect stream to video element
+    setPhase('speaking');
+
+    // Attach stream to video element immediately and on next frame after React mount
     if (liveVideoPreviewRef.current && recordMode === 'video') {
-      liveVideoPreviewRef.current.srcObject = activeStream;
+      attachStreamToVideo(liveVideoPreviewRef.current, activeStream);
     }
+    requestAnimationFrame(() => {
+      if (liveVideoPreviewRef.current && recordMode === 'video' && activeStream) {
+        attachStreamToVideo(liveVideoPreviewRef.current, activeStream);
+      }
+    });
 
     // MediaRecorder setup
     try {
@@ -1155,19 +1219,115 @@ export const ImpromptuSpeakingTab: React.FC = () => {
             }}
           >
             {recordMode === 'video' ? (
-              <video
-                ref={liveVideoPreviewRef}
-                autoPlay
-                muted
-                playsInline
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  maxHeight: '440px',
-                  objectFit: 'cover',
-                  transform: 'scaleX(-1)' // Mirror for natural webcam look
-                }}
-              />
+              <>
+                <video
+                  ref={setLiveVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  onLoadedMetadata={(e) => {
+                    const vid = e.currentTarget;
+                    vid.play().catch(() => {});
+                  }}
+                  onCanPlay={(e) => {
+                    const vid = e.currentTarget;
+                    vid.play().catch(() => {});
+                  }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '340px',
+                    maxHeight: '440px',
+                    objectFit: 'cover',
+                    display: 'block',
+                    transform: 'scaleX(-1)' // Mirror for natural webcam look
+                  }}
+                />
+
+                {/* Camera Live Status Badge */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'rgba(0, 0, 0, 0.65)',
+                    backdropFilter: 'blur(8px)',
+                    padding: '5px 12px',
+                    borderRadius: 'var(--radius-pill)',
+                    color: '#ffffff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    zIndex: 10
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: mediaStream?.getVideoTracks()?.some(t => t.readyState === 'live') ? '#10b981' : '#f59e0b',
+                      boxShadow: mediaStream?.getVideoTracks()?.some(t => t.readyState === 'live') ? '0 0 8px #10b981' : 'none'
+                    }}
+                  />
+                  <span>
+                    {mediaStream?.getVideoTracks()?.some(t => t.readyState === 'live') ? 'Camera Live' : 'Camera Reconnecting...'}
+                  </span>
+                </div>
+
+                {/* Fallback overlay if camera track is missing */}
+                {(!mediaStream || !mediaStream.getVideoTracks().some(t => t.readyState === 'live')) && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(9, 13, 22, 0.94)',
+                      zIndex: 8,
+                      padding: '20px',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <VideoOff size={44} color="#f59e0b" style={{ marginBottom: '12px' }} />
+                    <div style={{ color: '#ffffff', fontWeight: 800, fontSize: '1.05rem', marginBottom: '6px' }}>
+                      Camera Feed Inactive
+                    </div>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.8125rem', maxWidth: '320px', margin: '0 0 16px 0' }}>
+                      Camera permission may be blocked in your browser or occupied by another app.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        const st = await initializeMedia('video');
+                        if (st && liveVideoPreviewRef.current) {
+                          attachStreamToVideo(liveVideoPreviewRef.current, st);
+                        }
+                      }}
+                      className="tap-interactive"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 18px',
+                        borderRadius: 'var(--radius-pill)',
+                        background: 'var(--color-primary)',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontWeight: 700,
+                        fontSize: '0.8125rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <RotateCcw size={14} />
+                      <span>Retry Camera Connection</span>
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                 <div
