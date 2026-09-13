@@ -94,24 +94,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {/* Theme & Display Preferences (One Clear Theme Interaction) */}
+      {/* Settings & Theme */}
       <Card variant="default" padding="md">
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 'var(--space-4)'
+            flexDirection: 'column',
+            gap: 'var(--space-3)'
           }}
         >
           <div>
-            <h3 className="typography-h3">Interface Theme</h3>
+            <h3 className="typography-h3">Application Theme Styles</h3>
             <p className="typography-body-sm" style={{ color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-              Choose your preferred visual mode or match your device system settings.
+              Choose from 5 curated aesthetic color palettes. Your choice is saved locally and applies instantly.
             </p>
           </div>
-          <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="segmented" />
+          <ThemeToggle mode={themeMode} onModeChange={onThemeModeChange} variant="cards" />
         </div>
       </Card>
 

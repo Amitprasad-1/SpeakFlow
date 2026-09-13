@@ -96,10 +96,12 @@ export const App: React.FC = () => {
   // Apply theme to document element and listen for OS changes when in 'system' mode
   useEffect(() => {
     const applyTheme = () => {
-      let resolved: 'dark' | 'light' = 'dark';
+      let resolved = 'obsidian';
       if (themeMode === 'system') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        resolved = prefersDark ? 'dark' : 'light';
+        resolved = prefersDark ? 'obsidian' : 'light';
+      } else if (themeMode === 'dark') {
+        resolved = 'obsidian';
       } else {
         resolved = themeMode;
       }

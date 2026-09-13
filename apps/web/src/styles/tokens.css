@@ -99,9 +99,15 @@
 }
 
 /* ==========================================================================
-   SEMANTIC THEME: DARK (Default: Calm Obsidian & Emerald/Cyan Energy)
+   SEMANTIC THEME 1: OBSIDIAN EMERALD (Default Dark: Calm Obsidian & Emerald/Cyan)
    ========================================================================== */
+[data-theme='obsidian'],
 [data-theme='dark'] {
+  /* Ambient Mesh Lighting */
+  --theme-mesh-1: rgba(16, 185, 129, 0.08);
+  --theme-mesh-2: rgba(56, 189, 248, 0.08);
+  --theme-mesh-3: rgba(99, 102, 241, 0.06);
+
   /* Brand Core */
   --color-primary: #10b981;             /* Modern Emerald: calm, clear growth */
   --color-primary-hover: #059669;
@@ -123,6 +129,7 @@
   --color-surface-hover: #162033;       /* Interactive card hover */
   --color-surface-elevated: #1a253a;    /* Elevated modals & floating cards */
   --color-surface-active: #202d45;      /* Active state surface */
+  --color-surface-sunken: #0b101b;
 
   /* Text & Typography */
   --color-text-primary: #f8fafc;        /* High contrast primary text */
@@ -160,9 +167,215 @@
 }
 
 /* ==========================================================================
-   SEMANTIC THEME: LIGHT (Crisp Studio Alabaster & Forest/Teal Energy)
+   SEMANTIC THEME 2: ROYAL INDIGO & ELECTRIC VIOLET (Futuristic & Creative)
+   ========================================================================== */
+[data-theme='indigo'] {
+  /* Ambient Mesh Lighting */
+  --theme-mesh-1: rgba(139, 92, 246, 0.12);
+  --theme-mesh-2: rgba(236, 72, 153, 0.08);
+  --theme-mesh-3: rgba(99, 102, 241, 0.1);
+
+  /* Brand Core */
+  --color-primary: #8b5cf6;             /* Electric Violet */
+  --color-primary-hover: #7c3aed;
+  --color-primary-active: #6d28d9;
+  --color-primary-subtle: rgba(139, 92, 246, 0.15);
+  --color-primary-glow: rgba(139, 92, 246, 0.4);
+  --color-primary-on: #ffffff;
+
+  /* Secondary / Accent */
+  --color-accent: #ec4899;              /* Neon Magenta */
+  --color-accent-subtle: rgba(236, 72, 153, 0.14);
+  --color-secondary: #6366f1;           /* Indigo */
+  --color-secondary-subtle: rgba(99, 102, 241, 0.14);
+
+  /* Surfaces & Backgrounds */
+  --color-bg-app: #080914;              /* Deep velvet midnight */
+  --color-bg-subtle: #0f1122;           /* Subtle dark purple */
+  --color-surface: #14172e;             /* Primary card surface */
+  --color-surface-hover: #1c2140;       /* Interactive card hover */
+  --color-surface-elevated: #242a52;    /* Elevated modals */
+  --color-surface-active: #2e3566;
+  --color-surface-sunken: #0c0e1e;
+
+  /* Text & Typography */
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #a5b4fc;      /* Soft lavender secondary */
+  --color-text-muted: #6b7280;
+  --color-text-inverse: #080914;
+
+  /* Borders & Dividers */
+  --color-border: rgba(139, 92, 246, 0.15);
+  --color-border-subtle: rgba(139, 92, 246, 0.08);
+  --color-border-hover: rgba(139, 92, 246, 0.35);
+  --color-border-focus: #8b5cf6;
+
+  /* Semantic Feedback */
+  --color-success: #10b981;
+  --color-success-subtle: rgba(16, 185, 129, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-subtle: rgba(245, 158, 11, 0.14);
+  --color-error: #f43f5e;
+  --color-error-subtle: rgba(244, 63, 94, 0.14);
+  --color-info: #8b5cf6;
+  --color-info-subtle: rgba(139, 92, 246, 0.14);
+
+  /* Elevation Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px -2px rgba(11, 9, 26, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 28px -4px rgba(11, 9, 26, 0.7), 0 4px 8px -2px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 24px -2px var(--color-primary-glow);
+  --shadow-recording: 0 0 0 4px rgba(244, 63, 94, 0.25), 0 0 20px rgba(244, 63, 94, 0.4);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(20, 23, 46, 0.8);
+  --glass-border: rgba(139, 92, 246, 0.18);
+  --glass-blur: blur(16px);
+}
+
+/* ==========================================================================
+   SEMANTIC THEME 3: CYBER OCEAN & COBALT (High-Tech, Sleek & Focused)
+   ========================================================================== */
+[data-theme='ocean'] {
+  /* Ambient Mesh Lighting */
+  --theme-mesh-1: rgba(6, 182, 212, 0.1);
+  --theme-mesh-2: rgba(59, 130, 246, 0.09);
+  --theme-mesh-3: rgba(16, 185, 129, 0.05);
+
+  /* Brand Core */
+  --color-primary: #06b6d4;             /* Cyber Cyan Neon */
+  --color-primary-hover: #0891b2;
+  --color-primary-active: #0e7490;
+  --color-primary-subtle: rgba(6, 182, 212, 0.15);
+  --color-primary-glow: rgba(6, 182, 212, 0.4);
+  --color-primary-on: #04121e;
+
+  /* Secondary / Accent */
+  --color-accent: #3b82f6;              /* Cobalt Electric Blue */
+  --color-accent-subtle: rgba(59, 130, 246, 0.14);
+  --color-secondary: #0ea5e9;           /* Sky Neon */
+  --color-secondary-subtle: rgba(14, 165, 233, 0.12);
+
+  /* Surfaces & Backgrounds */
+  --color-bg-app: #050b14;              /* Deep Ocean Abyss */
+  --color-bg-subtle: #091322;           /* Subsurface Navy */
+  --color-surface: #0e1c31;             /* Primary card surface */
+  --color-surface-hover: #142744;       /* Interactive card hover */
+  --color-surface-elevated: #1b3359;    /* Elevated modals */
+  --color-surface-active: #223f6e;
+  --color-surface-sunken: #08111e;
+
+  /* Text & Typography */
+  --color-text-primary: #f0fdfa;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #475569;
+  --color-text-inverse: #050b14;
+
+  /* Borders & Dividers */
+  --color-border: rgba(6, 182, 212, 0.14);
+  --color-border-subtle: rgba(6, 182, 212, 0.06);
+  --color-border-hover: rgba(6, 182, 212, 0.32);
+  --color-border-focus: #06b6d4;
+
+  /* Semantic Feedback */
+  --color-success: #10b981;
+  --color-success-subtle: rgba(16, 185, 129, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-subtle: rgba(245, 158, 11, 0.14);
+  --color-error: #ef4444;
+  --color-error-subtle: rgba(239, 68, 68, 0.14);
+  --color-info: #06b6d4;
+  --color-info-subtle: rgba(6, 182, 212, 0.14);
+
+  /* Elevation Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px -2px rgba(4, 9, 20, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 28px -4px rgba(4, 9, 20, 0.7), 0 4px 8px -2px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 24px -2px var(--color-primary-glow);
+  --shadow-recording: 0 0 0 4px rgba(239, 68, 68, 0.25), 0 0 20px rgba(239, 68, 68, 0.4);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(14, 28, 49, 0.8);
+  --glass-border: rgba(6, 182, 212, 0.18);
+  --glass-blur: blur(16px);
+}
+
+/* ==========================================================================
+   SEMANTIC THEME 4: SUNSET AMBER & CRIMSON (Warm, Energetic & Confident)
+   ========================================================================== */
+[data-theme='sunset'] {
+  /* Ambient Mesh Lighting */
+  --theme-mesh-1: rgba(245, 158, 11, 0.1);
+  --theme-mesh-2: rgba(244, 63, 94, 0.08);
+  --theme-mesh-3: rgba(251, 146, 60, 0.06);
+
+  /* Brand Core */
+  --color-primary: #f59e0b;             /* Warm Amber */
+  --color-primary-hover: #d97706;
+  --color-primary-active: #b45309;
+  --color-primary-subtle: rgba(245, 158, 11, 0.15);
+  --color-primary-glow: rgba(245, 158, 11, 0.4);
+  --color-primary-on: #ffffff;
+
+  /* Secondary / Accent */
+  --color-accent: #f43f5e;              /* Sunset Crimson Rose */
+  --color-accent-subtle: rgba(244, 63, 94, 0.14);
+  --color-secondary: #fb923c;           /* Tangerine */
+  --color-secondary-subtle: rgba(251, 146, 60, 0.14);
+
+  /* Surfaces & Backgrounds */
+  --color-bg-app: #100b0d;              /* Deep Espresso Noir */
+  --color-bg-subtle: #171013;           /* Warm dark background */
+  --color-surface: #20171a;             /* Primary card surface */
+  --color-surface-hover: #2a1e22;       /* Interactive card hover */
+  --color-surface-elevated: #36262c;    /* Elevated modals */
+  --color-surface-active: #443038;
+  --color-surface-sunken: #140d10;
+
+  /* Text & Typography */
+  --color-text-primary: #fff7ed;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #78716c;
+  --color-text-inverse: #100b0d;
+
+  /* Borders & Dividers */
+  --color-border: rgba(245, 158, 11, 0.14);
+  --color-border-subtle: rgba(245, 158, 11, 0.06);
+  --color-border-hover: rgba(245, 158, 11, 0.32);
+  --color-border-focus: #f59e0b;
+
+  /* Semantic Feedback */
+  --color-success: #10b981;
+  --color-success-subtle: rgba(16, 185, 129, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-subtle: rgba(245, 158, 11, 0.14);
+  --color-error: #f43f5e;
+  --color-error-subtle: rgba(244, 63, 94, 0.14);
+  --color-info: #38bdf8;
+  --color-info-subtle: rgba(56, 189, 248, 0.14);
+
+  /* Elevation Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px -2px rgba(16, 11, 13, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 28px -4px rgba(16, 11, 13, 0.7), 0 4px 8px -2px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 24px -2px var(--color-primary-glow);
+  --shadow-recording: 0 0 0 4px rgba(244, 63, 94, 0.25), 0 0 20px rgba(244, 63, 94, 0.4);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(32, 23, 26, 0.8);
+  --glass-border: rgba(245, 158, 11, 0.18);
+  --glass-blur: blur(16px);
+}
+
+/* ==========================================================================
+   SEMANTIC THEME 5: STUDIO CLEAN LIGHT (Crisp Alabaster & Forest Teal)
    ========================================================================== */
 [data-theme='light'] {
+  /* Ambient Mesh Lighting */
+  --theme-mesh-1: rgba(16, 185, 129, 0.05);
+  --theme-mesh-2: rgba(2, 132, 199, 0.05);
+  --theme-mesh-3: rgba(99, 102, 241, 0.04);
+
   /* Brand Core */
   --color-primary: #059669;             /* Rich Forest Teal: crisp & trustworthy */
   --color-primary-hover: #047857;
@@ -184,6 +397,7 @@
   --color-surface-hover: #f8fafc;       /* Interactive card hover */
   --color-surface-elevated: #ffffff;    /* Elevated cards & dialogs */
   --color-surface-active: #e2e8f0;      /* Active state surface */
+  --color-surface-sunken: #f1f5f9;
 
   /* Text & Typography */
   --color-text-primary: #0f172a;        /* Deep slate for crisp readability */
