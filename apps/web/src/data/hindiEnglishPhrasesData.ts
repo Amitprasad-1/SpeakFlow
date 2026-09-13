@@ -115,3 +115,37 @@ export const DEFAULT_HINDI_ENGLISH_PHRASES: HindiEnglishPhrase[] = [
   { id: 'he_d17', hindi: 'मैं तुमसे सहमत हूँ।', english: 'I agree with you.', category: 'daily' },
   { id: 'he_d18', hindi: 'मुझे ऐसा नहीं लगता।', english: "I don't think so.", category: 'daily' }
 ];
+
+/**
+ * Deterministically rotates and selects 12 curated daily phrases for a given calendar date.
+ */
+export function getDailyRotatedPhrases(dateString?: string): HindiEnglishPhrase[] {
+  let seed = 42;
+  if (dateString) {
+    seed = dateString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  } else {
+    const today = new Date();
+    seed = today.getFullYear() * 1000 + (today.getMonth() + 1) * 50 + today.getDate();
+  }
+
+  const punchy = DEFAULT_HINDI_ENGLISH_PHRASES.filter((p) => p.category === 'punchy');
+  const assertive = DEFAULT_HINDI_ENGLISH_PHRASES.filter((p) => p.category === 'assertive');
+  const requests = DEFAULT_HINDI_ENGLISH_PHRASES.filter((p) => p.category === 'requests');
+  const daily = DEFAULT_HINDI_ENGLISH_PHRASES.filter((p) => p.category === 'daily');
+
+  const pick = (arr: HindiEnglishPhrase[], count: number, offset: number) => {
+    const result: HindiEnglishPhrase[] = [];
+    for (let i = 0; i < count; i++) {
+      const idx = (offset + i * 2) % arr.length;
+      result.push(arr[idx]);
+    }
+    return result;
+  };
+
+  return [
+    ...pick(punchy, 3, seed % punchy.length),
+    ...pick(assertive, 3, (seed * 3) % assertive.length),
+    ...pick(requests, 3, (seed * 5) % requests.length),
+    ...pick(daily, 3, (seed * 7) % daily.length)
+  ];
+}

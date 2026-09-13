@@ -234,4 +234,71 @@ RULES:
       return '';
     }
   }
+
+  /**
+   * Fetches/generates fresh daily real-world spoken Hindi-to-English phrases
+   * inspired by popular educational microlearning formats (@VibesOfLearning reference).
+   */
+  public static async fetchFreshDailyPhrases(theme?: string): Promise<Array<{
+    id: string;
+    hindi: string;
+    english: string;
+    category: 'punchy' | 'assertive' | 'requests' | 'daily';
+    isCustom?: boolean;
+  }>> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) return [];
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const prompt = `You are an expert English communication coach specializing in popular, real-world Hindi-to-English spoken sentences (like the trending educational carousel series by @VibesOfLearning).
+Generate 10 fresh, practical, and highly authentic everyday spoken sentences.
+Avoid generic textbook sentences. Focus on modern expressions used in daily arguments, polite requests, confidence, and casual chats.
+${theme ? `Focus on the theme: "${theme}".` : ''}
+
+Output a STRICT JSON ARRAY of 10 objects:
+[
+  {
+    "hindi": "मुझ पर हुक्म मत चलाओ।",
+    "english": "Don't order me around.",
+    "category": "assertive"
+  }
+]
+Allowed category values: "punchy" | "assertive" | "requests" | "daily"`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 600,
+            responseMimeType: 'application/json'
+          }
+        })
+      });
+
+      if (!res.ok) return [];
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) return [];
+
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed.map((item: any, idx: number) => ({
+        id: `ai_fresh_${Date.now()}_${idx}`,
+        hindi: String(item.hindi || '').trim(),
+        english: String(item.english || '').trim(),
+        category: (['punchy', 'assertive', 'requests', 'daily'].includes(item.category)
+          ? item.category
+          : 'daily') as any,
+        isCustom: true
+      })).filter((p) => p.hindi && p.english);
+    } catch (err) {
+      console.warn('Failed to fetch fresh daily phrases from Gemini:', err);
+      return [];
+    }
+  }
 }

@@ -162,7 +162,7 @@ export const App: React.FC = () => {
       {currentRoute === 'reading' && <DailyReadingTab currentDateString={currentDate} />}
       {currentRoute === 'twisters' && <DailyTwistersTab currentDateString={currentDate} />}
       {currentRoute === 'grammar' && <DailyGrammarLabTab currentDateString={currentDate} />}
-      {currentRoute === 'phrases' && <DailyPhrasesTab />}
+      {currentRoute === 'phrases' && <DailyPhrasesTab currentDateString={currentDate} />}
       {currentRoute === 'conversation' && (
         <ConversationView onReturnToHome={() => navigateTo('reading')} />
       )}

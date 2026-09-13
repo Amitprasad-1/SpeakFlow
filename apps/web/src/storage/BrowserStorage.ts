@@ -23,7 +23,8 @@ const STORAGE_KEYS = {
   LEARNING_MEMORY: 'speakflow_learning_memory_v1',
   CONVERSATIONS_HISTORY: 'speakflow_conversations_v1',
   CUSTOM_PHRASES: 'speakflow_custom_phrases_v1',
-  FAVORITE_PHRASES: 'speakflow_fav_phrases_v1'
+  FAVORITE_PHRASES: 'speakflow_fav_phrases_v1',
+  DAILY_PHRASES_PREFIX: 'speakflow_daily_phrases_'
 };
 
 export interface AppSettings {
@@ -350,6 +351,24 @@ export class BrowserStorage {
       return isNowFav;
     } catch {
       return false;
+    }
+  }
+
+  public static getDailyGeneratedPhrases(date: string): any[] | null {
+    try {
+      const data = localStorage.getItem(`${STORAGE_KEYS.DAILY_PHRASES_PREFIX}${date}`);
+      if (!data) return null;
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+
+  public static saveDailyGeneratedPhrases(date: string, phrases: any[]): void {
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.DAILY_PHRASES_PREFIX}${date}`, JSON.stringify(phrases));
+    } catch (e) {
+      console.warn('Failed to save daily generated phrases:', e);
     }
   }
 }

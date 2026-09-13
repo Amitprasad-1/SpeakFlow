@@ -5,7 +5,8 @@ import {
   HindiEnglishPhrase,
   PhraseCategory,
   DEFAULT_HINDI_ENGLISH_PHRASES,
-  CATEGORY_LABELS
+  CATEGORY_LABELS,
+  getDailyRotatedPhrases
 } from '../../data/hindiEnglishPhrasesData';
 import { BrowserStorage } from '../../storage/BrowserStorage';
 import { GeminiAIService } from '../../services/GeminiAIService';
@@ -26,11 +27,40 @@ import {
   MessageCircle,
   Layers,
   X,
-  Languages
+  Languages,
+  RotateCw,
+  Calendar,
+  BookOpen
 } from 'lucide-react';
 
-export const DailyPhrasesTab: React.FC = () => {
-  // 1. Storage & Phrases State
+export interface DailyPhrasesTabProps {
+  currentDateString?: string;
+}
+
+export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
+  currentDateString
+}) => {
+  // Effective active date (YYYY-MM-DD)
+  const effectiveDate = useMemo(() => {
+    if (currentDateString) return currentDateString;
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [currentDateString]);
+
+  // View Mode: 'daily' (today's curated dynamic set) vs 'library' (all 88+ phrases)
+  const [viewMode, setViewMode] = useState<'daily' | 'library'>('daily');
+
+  // Dynamic daily phrases state
+  const [dailyPhrases, setDailyPhrases] = useState<HindiEnglishPhrase[]>(() => {
+    const cached = BrowserStorage.getDailyGeneratedPhrases(effectiveDate);
+    if (cached && cached.length > 0) return cached;
+    return getDailyRotatedPhrases(effectiveDate);
+  });
+
+  // Storage & Custom phrases
   const [customPhrases, setCustomPhrases] = useState<HindiEnglishPhrase[]>(() => {
     return BrowserStorage.getCustomPhrases();
   });
@@ -38,31 +68,39 @@ export const DailyPhrasesTab: React.FC = () => {
     return new Set(BrowserStorage.getFavoritePhraseIds());
   });
 
-  // 2. Filter & Search State
+  // Filters & Search
   const [activeCategory, setActiveCategory] = useState<PhraseCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 3. Audio & Speech State
+  // Audio & Practice state
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [practiceResults, setPracticeResults] = useState<Record<string, { spoken: string; matchScore: number }>>({});
 
-  // 4. Modal / Add New Phrase State
+  // Dynamic AI Fetching state
+  const [isFetchingFresh, setIsFetchingFresh] = useState(false);
+  const [freshFeedback, setFreshFeedback] = useState<string | null>(null);
+
+  // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newHindi, setNewHindi] = useState('');
   const [newEnglish, setNewEnglish] = useState('');
   const [newCategory, setNewCategory] = useState<'punchy' | 'assertive' | 'requests' | 'daily'>('daily');
   const [isTranslating, setIsTranslating] = useState(false);
 
-  // Speech Recognition instance ref
   const recognitionRef = useRef<any>(null);
 
-  // Combined phrase list
-  const allPhrases = useMemo(() => {
-    return [...customPhrases, ...DEFAULT_HINDI_ENGLISH_PHRASES];
-  }, [customPhrases]);
+  // Update daily phrases whenever date changes
+  useEffect(() => {
+    const cached = BrowserStorage.getDailyGeneratedPhrases(effectiveDate);
+    if (cached && cached.length > 0) {
+      setDailyPhrases(cached);
+    } else {
+      setDailyPhrases(getDailyRotatedPhrases(effectiveDate));
+    }
+  }, [effectiveDate]);
 
-  // Clean up speech synthesis on unmount
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
@@ -74,9 +112,49 @@ export const DailyPhrasesTab: React.FC = () => {
     };
   }, []);
 
-  // Filtered phrase list
+  // Dynamically fetch or generate a fresh set
+  const handleFetchFreshPack = async () => {
+    setIsFetchingFresh(true);
+    setFreshFeedback(null);
+
+    try {
+      if (GeminiAIService.isConfigured()) {
+        const freshList = await GeminiAIService.fetchFreshDailyPhrases();
+        if (freshList && freshList.length > 0) {
+          setDailyPhrases(freshList as any);
+          BrowserStorage.saveDailyGeneratedPhrases(effectiveDate, freshList);
+          setFreshFeedback('10 fresh spoken phrases generated via live AI!');
+          setTimeout(() => setFreshFeedback(null), 4000);
+          return;
+        }
+      }
+
+      // Offline rotation fallback: shift rotation seed
+      const randomSeed = `${effectiveDate}_${Date.now()}`;
+      const rotated = getDailyRotatedPhrases(randomSeed);
+      setDailyPhrases(rotated);
+      BrowserStorage.saveDailyGeneratedPhrases(effectiveDate, rotated);
+      setFreshFeedback("Loaded fresh rotating daily phrases!");
+      setTimeout(() => setFreshFeedback(null), 4000);
+    } catch {
+      const rotated = getDailyRotatedPhrases(`${effectiveDate}_fallback`);
+      setDailyPhrases(rotated);
+    } finally {
+      setIsFetchingFresh(false);
+    }
+  };
+
+  // Base list depending on view mode
+  const activeBaseList = useMemo(() => {
+    if (viewMode === 'daily') {
+      return dailyPhrases;
+    }
+    return [...customPhrases, ...DEFAULT_HINDI_ENGLISH_PHRASES];
+  }, [viewMode, dailyPhrases, customPhrases]);
+
+  // Filtered phrases
   const filteredPhrases = useMemo(() => {
-    let list = allPhrases;
+    let list = activeBaseList;
 
     if (activeCategory === 'favorites') {
       list = list.filter((p) => favoriteIds.has(p.id));
@@ -94,9 +172,9 @@ export const DailyPhrasesTab: React.FC = () => {
     }
 
     return list;
-  }, [allPhrases, activeCategory, favoriteIds, searchQuery]);
+  }, [activeBaseList, activeCategory, favoriteIds, searchQuery]);
 
-  // Handle TTS Audio playback
+  // Audio playback
   const handlePlayAudio = (phrase: HindiEnglishPhrase) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
@@ -104,7 +182,7 @@ export const DailyPhrasesTab: React.FC = () => {
     setPlayingId(phrase.id);
 
     const utterance = new SpeechSynthesisUtterance(phrase.english);
-    utterance.rate = 0.95; // Slightly slower for crisp clarity
+    utterance.rate = 0.95;
     utterance.lang = 'en-US';
 
     utterance.onend = () => setPlayingId(null);
@@ -113,10 +191,9 @@ export const DailyPhrasesTab: React.FC = () => {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Handle Speech Practice Recording
+  // Speech Practice
   const handleTogglePractice = (phrase: HindiEnglishPhrase) => {
     if (recordingId === phrase.id) {
-      // Stop recording
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -148,7 +225,6 @@ export const DailyPhrasesTab: React.FC = () => {
       const target = phrase.english.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, '').trim();
       const cleanSpoken = spoken.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, '').trim();
 
-      // Calculate simple matching percentage
       let score = 0;
       if (cleanSpoken === target) {
         score = 100;
@@ -169,13 +245,8 @@ export const DailyPhrasesTab: React.FC = () => {
       setRecordingId(null);
     };
 
-    recognition.onerror = () => {
-      setRecordingId(null);
-    };
-
-    recognition.onend = () => {
-      setRecordingId(null);
-    };
+    recognition.onerror = () => setRecordingId(null);
+    recognition.onend = () => setRecordingId(null);
 
     recognitionRef.current = recognition;
     recognition.start();
@@ -204,6 +275,9 @@ export const DailyPhrasesTab: React.FC = () => {
     });
 
     setCustomPhrases((prev) => [created, ...prev]);
+    if (viewMode === 'daily') {
+      setDailyPhrases((prev) => [created, ...prev]);
+    }
     setNewHindi('');
     setNewEnglish('');
     setIsAddModalOpen(false);
@@ -214,6 +288,7 @@ export const DailyPhrasesTab: React.FC = () => {
     e.stopPropagation();
     BrowserStorage.deleteCustomPhrase(id);
     setCustomPhrases((prev) => prev.filter((p) => p.id !== id));
+    setDailyPhrases((prev) => prev.filter((p) => p.id !== id));
   };
 
   // Auto-translate using Gemini
@@ -225,7 +300,7 @@ export const DailyPhrasesTab: React.FC = () => {
       if (translated) {
         setNewEnglish(translated);
       } else {
-        alert('Translation unavailable. Please ensure your Gemini API key is configured in Profile & Settings or enter the English translation directly.');
+        alert('Translation unavailable. Configure your free Gemini API key in Profile & Settings or enter the English translation directly.');
       }
     } catch {
       alert('Could not translate at this moment.');
@@ -239,43 +314,150 @@ export const DailyPhrasesTab: React.FC = () => {
       {/* Header Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
             <Badge variant="primary" icon={<Languages size={14} />}>
               हिंदी ➔ English Studio
             </Badge>
-            <Badge variant="level">
-              {allPhrases.length} Spoken Phrases
+            <Badge variant="focus">
+              Ref: @VibesOfLearning
             </Badge>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                background: 'var(--color-primary-subtle)',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-sm)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <Calendar size={12} />
+              {effectiveDate}
+            </span>
           </div>
           <h1 className="typography-h1" style={{ margin: 0 }}>
             Everyday Spoken Phrases
           </h1>
           <p className="typography-body" style={{ marginTop: 'var(--space-1)', color: 'var(--color-text-secondary)', maxWidth: '65ch' }}>
-            Learn natural English translations for everyday Hindi expressions. Listen to clear pronunciation and practice speaking each phrase with real-time feedback!
+            Daily curated spoken English sentences for real-world Hindi expressions. Fresh dynamic content updated daily with audio pronunciation and instant voice feedback!
           </p>
         </div>
 
-        {/* Action Button to Add Custom Phrase */}
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="speakflow-btn btn-variant-primary"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
-            padding: 'var(--space-2-5) var(--space-4)',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 600,
-            fontSize: 'var(--text-body-sm)'
-          }}
-        >
-          <Plus size={16} />
-          <span>Add Custom Phrase</span>
-        </button>
+        {/* Action Controls */}
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleFetchFreshPack}
+            disabled={isFetchingFresh}
+            className="speakflow-btn btn-variant-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-1-5)',
+              padding: 'var(--space-2-5) var(--space-3-5)',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: 600,
+              fontSize: 'var(--text-body-sm)'
+            }}
+            title="Generate or pull fresh daily spoken phrases"
+          >
+            <RotateCw size={15} className={isFetchingFresh ? 'animate-spin' : ''} />
+            <span>{isFetchingFresh ? 'Fetching Fresh...' : 'Fetch Fresh Daily Set'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="speakflow-btn btn-variant-primary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-1-5)',
+              padding: 'var(--space-2-5) var(--space-4)',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: 600,
+              fontSize: 'var(--text-body-sm)'
+            }}
+          >
+            <Plus size={16} />
+            <span>Add Custom Phrase</span>
+          </button>
+        </div>
       </div>
 
-      {/* Search & Category Tabs */}
+      {/* Fresh Feedback Toast */}
+      {freshFeedback && (
+        <div
+          style={{
+            padding: 'var(--space-2-5) var(--space-4)',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            color: '#10b981',
+            fontSize: 'var(--text-body-sm)',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Sparkles size={16} />
+          <span>{freshFeedback}</span>
+        </div>
+      )}
+
+      {/* View Mode Switcher & Category Filters */}
       <Card variant="default" padding="md" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        {/* Toggle Mode: Today's Pick vs All Library */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <button
+              onClick={() => setViewMode('daily')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-body-sm)',
+                fontWeight: viewMode === 'daily' ? 700 : 500,
+                background: viewMode === 'daily' ? 'var(--color-primary)' : 'var(--color-surface)',
+                color: viewMode === 'daily' ? '#ffffff' : 'var(--color-text-secondary)',
+                border: `1px solid ${viewMode === 'daily' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                cursor: 'pointer'
+              }}
+            >
+              <Calendar size={14} />
+              <span>Today's Daily Set ({dailyPhrases.length})</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode('library')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-body-sm)',
+                fontWeight: viewMode === 'library' ? 700 : 500,
+                background: viewMode === 'library' ? 'var(--color-primary)' : 'var(--color-surface)',
+                color: viewMode === 'library' ? '#ffffff' : 'var(--color-text-secondary)',
+                border: `1px solid ${viewMode === 'library' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                cursor: 'pointer'
+              }}
+            >
+              <BookOpen size={14} />
+              <span>Full Library ({customPhrases.length + DEFAULT_HINDI_ENGLISH_PHRASES.length})</span>
+            </button>
+          </div>
+
+          <span style={{ fontSize: 'var(--text-caption)', color: 'var(--color-text-muted)' }}>
+            {viewMode === 'daily' ? '📅 Curated fresh phrases for this calendar date' : '📚 Complete searchable expression catalog'}
+          </span>
+        </div>
+
         {/* Search Input Bar */}
         <div style={{ position: 'relative', width: '100%' }}>
           <Search
@@ -330,10 +512,10 @@ export const DailyPhrasesTab: React.FC = () => {
             const meta = CATEGORY_LABELS[cat];
             const count =
               cat === 'all'
-                ? allPhrases.length
+                ? activeBaseList.length
                 : cat === 'favorites'
                 ? favoriteIds.size
-                : allPhrases.filter((p) => p.category === cat).length;
+                : activeBaseList.filter((p) => p.category === cat).length;
 
             return (
               <button
@@ -382,7 +564,7 @@ export const DailyPhrasesTab: React.FC = () => {
       {filteredPhrases.length === 0 ? (
         <Card variant="default" padding="lg" style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
           <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: 'var(--text-body)' }}>
-            No phrases found matching "{searchQuery}". Try a different search term or add your own!
+            No phrases found matching "{searchQuery}". Click "Fetch Fresh Daily Set" or "Add Custom Phrase" to add more!
           </p>
         </Card>
       ) : (
