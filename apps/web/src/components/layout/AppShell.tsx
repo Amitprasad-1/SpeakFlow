@@ -189,12 +189,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Top Header (Desktop contextual + Mobile brand bar) */}
         <header className="top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            {/* Mobile-only logo */}
-            <div className="mobile-logo-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
-              <BrandLogo size="sm" showTagline={false} />
-            </div>
-
-            {/* Section title (Desktop only, hidden on mobile) */}
+            {/* Section title */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <h2 className="typography-h3 header-section-title">
                 {activeTab === 'reading'

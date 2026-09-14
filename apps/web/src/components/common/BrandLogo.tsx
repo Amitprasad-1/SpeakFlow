@@ -2,6 +2,7 @@ import React from 'react';
 
 interface BrandLogoProps {
   size?: 'sm' | 'md' | 'lg';
+  showIcon?: boolean;
   showTagline?: boolean;
   collapsed?: boolean;
   className?: string;
@@ -9,6 +10,7 @@ interface BrandLogoProps {
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
   size = 'md',
+  showIcon = true,
   showTagline = true,
   collapsed = false,
   className = ''
@@ -38,20 +40,22 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       }}
     >
       {/* Authentic High-Definition Brand Mark */}
-      <img
-        src="/logo-mark.png"
-        alt="SpeakFlow"
-        width={iconDimensions}
-        height={iconDimensions}
-        style={{
-          width: iconDimensions,
-          height: iconDimensions,
-          borderRadius: size === 'sm' ? '7px' : size === 'md' ? '9px' : '12px',
-          objectFit: 'cover',
-          boxShadow: '0 4px 16px rgba(16, 185, 129, 0.22), 0 2px 8px rgba(14, 165, 233, 0.2)',
-          flexShrink: 0
-        }}
-      />
+      {showIcon && (
+        <img
+          src="/logo-mark.png"
+          alt="SpeakFlow"
+          width={iconDimensions}
+          height={iconDimensions}
+          style={{
+            width: iconDimensions,
+            height: iconDimensions,
+            borderRadius: size === 'sm' ? '7px' : size === 'md' ? '9px' : '12px',
+            objectFit: 'cover',
+            boxShadow: '0 4px 16px rgba(16, 185, 129, 0.22), 0 2px 8px rgba(14, 165, 233, 0.2)',
+            flexShrink: 0
+          }}
+        />
+      )}
 
       {/* Wordmark & Positioning */}
       {!collapsed && (
