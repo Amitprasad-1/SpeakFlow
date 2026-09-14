@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Video,
   VideoOff,
@@ -20,7 +21,11 @@ import {
   FileText,
   Volume1,
   MessageSquareQuote,
-  Clock
+  Clock,
+  ArrowUpRight,
+  ArrowDownRight,
+  GripHorizontal,
+  Move
 } from 'lucide-react';
 import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
 
@@ -60,6 +65,26 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
   const [isMicActive, setIsMicActive] = useState<boolean>(true);
   const [isMirrored, setIsMirrored] = useState<boolean>(true);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  
+  // Draggable & Resizable State
+  const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
+  const [windowWidth, setWindowWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) return 260;
+    return 340;
+  });
+  const isDraggingRef = useRef<boolean>(false);
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number }>({
+    mouseX: 0,
+    mouseY: 0,
+    startX: 0,
+    startY: 0
+  });
+  const isResizingRef = useRef<boolean>(false);
+  const resizeStartRef = useRef<{ mouseX: number; startWidth: number }>({
+    mouseX: 0,
+    startWidth: 340
+  });
+  const windowRef = useRef<HTMLDivElement | null>(null);
 
   // Recording State
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -114,6 +139,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
       setStream(mediaStream);
       if (videoPreviewRef.current) {
         videoPreviewRef.current.srcObject = mediaStream;
+        videoPreviewRef.current.play().catch(() => {});
       }
 
       // Audio level analyser
@@ -205,9 +231,95 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
   // Keep preview connected when stream changes
   useEffect(() => {
     if (videoPreviewRef.current && stream) {
-      videoPreviewRef.current.srcObject = stream;
+      if (videoPreviewRef.current.srcObject !== stream) {
+        videoPreviewRef.current.srcObject = stream;
+      }
+      videoPreviewRef.current.play().catch(() => {});
     }
   }, [stream]);
+
+  // Callback ref for guaranteed video element attachment on mount
+  const handleVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoPreviewRef.current = node;
+    if (node && stream) {
+      if (node.srcObject !== stream) {
+        node.srcObject = stream;
+      }
+      node.play().catch(() => {});
+    }
+  }, [stream]);
+
+  // Window Drag Handler (Move anywhere on screen)
+  const handleDragStart = useCallback((clientX: number, clientY: number) => {
+    isDraggingRef.current = true;
+    const currentRect = windowRef.current?.getBoundingClientRect();
+    const defaultX = typeof window !== 'undefined' ? Math.max(16, window.innerWidth - windowWidth - 28) : 20;
+    const defaultY = 85;
+    const startX = currentRect ? currentRect.left : (coords?.x ?? defaultX);
+    const startY = currentRect ? currentRect.top : (coords?.y ?? defaultY);
+    dragStartRef.current = { mouseX: clientX, mouseY: clientY, startX, startY };
+  }, [coords, windowWidth]);
+
+  // Window Resize Handler (Expand/shrink freely)
+  const handleResizeStart = useCallback((clientX: number) => {
+    isResizingRef.current = true;
+    resizeStartRef.current = { mouseX: clientX, startWidth: windowWidth };
+  }, [windowWidth]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (isDraggingRef.current) {
+        const deltaX = e.clientX - dragStartRef.current.mouseX;
+        const deltaY = e.clientY - dragStartRef.current.mouseY;
+        const newX = Math.min(Math.max(10, dragStartRef.current.startX + deltaX), window.innerWidth - windowWidth - 10);
+        const newY = Math.min(Math.max(10, dragStartRef.current.startY + deltaY), window.innerHeight - 80);
+        setCoords({ x: newX, y: newY });
+      } else if (isResizingRef.current) {
+        const deltaX = e.clientX - resizeStartRef.current.mouseX;
+        const newWidth = Math.min(Math.max(220, resizeStartRef.current.startWidth + deltaX), Math.min(640, window.innerWidth - 20));
+        setWindowWidth(newWidth);
+      }
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      isResizingRef.current = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        if (isDraggingRef.current) {
+          const deltaX = touch.clientX - dragStartRef.current.mouseX;
+          const deltaY = touch.clientY - dragStartRef.current.mouseY;
+          const newX = Math.min(Math.max(10, dragStartRef.current.startX + deltaX), window.innerWidth - windowWidth - 10);
+          const newY = Math.min(Math.max(10, dragStartRef.current.startY + deltaY), window.innerHeight - 80);
+          setCoords({ x: newX, y: newY });
+        } else if (isResizingRef.current) {
+          const deltaX = touch.clientX - resizeStartRef.current.mouseX;
+          const newWidth = Math.min(Math.max(220, resizeStartRef.current.startWidth + deltaX), Math.min(640, window.innerWidth - 20));
+          setWindowWidth(newWidth);
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      isDraggingRef.current = false;
+      isResizingRef.current = false;
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [windowWidth]);
 
   // Toggle Camera video track
   const toggleCameraTrack = () => {
@@ -516,43 +628,75 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
     return Math.round(sum / spokenSentences.length);
   }, [sentenceComparisons]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <>
-      {/* Floating Picture-in-Picture Camera Mirror Window */}
+      {/* Floating Picture-in-Picture Camera Mirror Window (Draggable & Resizable) */}
       <div
+        ref={windowRef}
+        className="speakflow-camera-mirror"
         style={{
           position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: isMinimized ? '200px' : '330px',
+          left: coords ? `${coords.x}px` : 'auto',
+          top: coords ? `${coords.y}px` : '85px',
+          right: coords ? 'auto' : 'clamp(16px, 2.5vw, 32px)',
+          bottom: 'auto',
+          width: isMinimized ? '220px' : `${windowWidth}px`,
+          maxWidth: 'calc(100vw - 20px)',
           background: 'var(--color-surface-elevated, #18181b)',
-          border: isRecording ? '2px solid #ef4444' : '1px solid var(--color-border)',
+          border: isRecording ? '2px solid #ef4444' : '2px solid var(--color-primary)',
           borderRadius: 'var(--radius-lg, 16px)',
           boxShadow: isRecording
-            ? '0 12px 36px rgba(239, 68, 68, 0.35), 0 4px 12px rgba(0, 0, 0, 0.4)'
-            : '0 12px 32px rgba(0, 0, 0, 0.35)',
-          zIndex: 100,
+            ? '0 16px 48px rgba(239, 68, 68, 0.4), 0 4px 16px rgba(0, 0, 0, 0.6)'
+            : '0 16px 48px rgba(0, 0, 0, 0.6), 0 0 24px rgba(14, 165, 233, 0.25)',
+          zIndex: 99999,
           overflow: 'hidden',
-          transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: isDraggingRef.current || isResizingRef.current ? 'none' : 'box-shadow 0.2s ease, border-color 0.2s ease',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          userSelect: isDraggingRef.current || isResizingRef.current ? 'none' : 'auto'
         }}
       >
-        {/* Mirror Header Bar */}
+        {/* Draggable Mirror Header Bar */}
         <div
+          onMouseDown={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+            e.preventDefault();
+            handleDragStart(e.clientX, e.clientY);
+          }}
+          onTouchStart={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+            if (e.touches.length > 0) {
+              handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+            }
+          }}
+          title="Click & hold to drag camera anywhere on screen"
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '8px 12px',
-            background: 'rgba(0, 0, 0, 0.45)',
+            background: 'rgba(0, 0, 0, 0.65)',
             backdropFilter: 'blur(8px)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            cursor: 'grab',
+            userSelect: 'none',
+            touchAction: 'none'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                color: '#94a3b8'
+              }}
+              title="Hold and drag to move"
+            >
+              <GripHorizontal size={16} />
+            </div>
+
             {isRecording ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span
@@ -569,16 +713,70 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                 </span>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Video size={13} color="var(--color-primary, #0ea5e9)" />
-                <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-secondary, #94a3b8)' }}>
-                  Camera Practice Mirror
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#10b981',
+                    boxShadow: '0 0 8px #10b981'
+                  }}
+                />
+                <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-primary, #ffffff)' }}>
+                  Webcam Live
                 </span>
               </div>
             )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* Quick Size Toggle Button (SM / MD / LG) */}
+            <button
+              onClick={() => {
+                setWindowWidth((prev) => {
+                  if (prev <= 290) return 360;
+                  if (prev <= 390) return 480;
+                  return 270;
+                });
+              }}
+              title={`Resize camera (Current: ${windowWidth}px). Click to cycle: Small (270px), Medium (360px), Large (480px)`}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '4px',
+                color: '#e2e8f0',
+                cursor: 'pointer',
+                padding: '2px 6px',
+                fontSize: '0.6875rem',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                lineHeight: 1
+              }}
+            >
+              {windowWidth > 400 ? 'LG' : windowWidth > 300 ? 'MD' : 'SM'}
+            </button>
+
+            {/* Reset Position (if user moved it) */}
+            {coords && (
+              <button
+                onClick={() => setCoords(null)}
+                title="Reset camera position beside reading text"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                <RotateCcw size={13} />
+              </button>
+            )}
+
             {/* Mirror Flip */}
             <button
               onClick={() => setIsMirrored((prev) => !prev)}
@@ -588,12 +786,12 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                 border: 'none',
                 color: isMirrored ? 'var(--color-primary, #0ea5e9)' : '#94a3b8',
                 cursor: 'pointer',
-                padding: '3px',
+                padding: '4px',
                 display: 'flex',
                 alignItems: 'center'
               }}
             >
-              <FlipHorizontal size={13} />
+              <FlipHorizontal size={14} />
             </button>
 
             {/* Minimize / Maximize */}
@@ -605,12 +803,12 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                 border: 'none',
                 color: '#94a3b8',
                 cursor: 'pointer',
-                padding: '3px',
+                padding: '4px',
                 display: 'flex',
                 alignItems: 'center'
               }}
             >
-              {isMinimized ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+              {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </button>
 
             {/* Close */}
@@ -622,22 +820,23 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                 border: 'none',
                 color: '#94a3b8',
                 cursor: 'pointer',
-                padding: '3px',
+                padding: '4px',
                 display: 'flex',
                 alignItems: 'center'
               }}
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         </div>
 
-        {/* Video Viewport Area */}
+        {/* Video Viewport Area (Scales proportionately with windowWidth) */}
         <div
           style={{
             position: 'relative',
             width: '100%',
-            height: isMinimized ? '112px' : '185px',
+            height: isMinimized ? '110px' : `${Math.round(windowWidth * 0.58)}px`,
+            maxHeight: isMinimized ? '110px' : '58vh',
             background: '#09090b',
             display: 'flex',
             alignItems: 'center',
@@ -692,16 +891,20 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
             </div>
           ) : (
             <video
-              ref={videoPreviewRef}
+              ref={handleVideoRef}
               autoPlay
               playsInline
               muted // Always muted in preview so user does not hear feedback echo
+              onLoadedMetadata={(e) => {
+                (e.target as HTMLVideoElement).play().catch(() => {});
+              }}
               style={{
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
                 transform: isMirrored ? 'scaleX(-1)' : 'none',
-                transition: 'transform 0.2s ease'
+                transition: 'transform 0.2s ease',
+                display: 'block'
               }}
             />
           )}
@@ -891,6 +1094,43 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
             </button>
           )}
         </div>
+
+        {/* Drag Resize Corner Handle (Bottom-Right) */}
+        {!isMinimized && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleResizeStart(e.clientX);
+            }}
+            onTouchStart={(e) => {
+              if (e.touches.length > 0) {
+                e.stopPropagation();
+                handleResizeStart(e.touches[0].clientX);
+              }
+            }}
+            title="Drag horizontally to resize camera"
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              width: '24px',
+              height: '24px',
+              cursor: 'nwse-resize',
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'flex-end',
+              padding: '3px',
+              zIndex: 35,
+              userSelect: 'none',
+              touchAction: 'none'
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.65, pointerEvents: 'none' }}>
+              <path d="M10 2L2 10M10 6L6 10M10 10L10 10" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
       </div>
 
       {/* 5. Authentic Video Review Studio: Real Voice Match */}
@@ -904,7 +1144,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 200,
+            zIndex: 100000,
             padding: '16px'
           }}
         >
@@ -1423,6 +1663,7 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
 };

@@ -615,6 +615,57 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         </div>
       </div>
 
+      {/* Active Camera Live Bar Notification */}
+      {isVideoRecorderOpen && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '10px 16px',
+            background: 'linear-gradient(90deg, rgba(14, 165, 233, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)',
+            border: '1px solid rgba(14, 165, 233, 0.3)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 2px 8px rgba(14, 165, 233, 0.08)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+              <span style={{ position: 'absolute', width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #10b981', opacity: 0.6, animation: 'pulse 1.5s infinite' }} />
+            </div>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--color-text-primary)' }}>
+                Webcam & Speech Live
+              </span>
+              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                Floating camera mirror is active on your screen. You can move it between corners or record video practice!
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsVideoRecorderOpen(false)}
+            style={{
+              padding: '4px 10px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-pill)',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            Turn Camera Off
+          </button>
+        </div>
+      )}
+
       {/* 3. The Continuous Reading Canvas: Automated Flow */}
       <div
         style={{
