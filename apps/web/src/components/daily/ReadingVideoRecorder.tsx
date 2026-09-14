@@ -38,6 +38,10 @@ export interface ReadingVideoRecorderProps {
   currentSentenceIndex?: number;
   totalSentences?: number;
   isAutoReading?: boolean;
+  onStartAutoReading?: () => void;
+  onStopAutoReading?: () => void;
+  onRecordingStateChange?: (isRecording: boolean) => void;
+  recordingTrigger?: number;
 }
 
 interface SentenceComparison {
@@ -56,7 +60,12 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
   totalWords,
   sentences = [],
   currentSentenceIndex = 0,
-  totalSentences = 1
+  totalSentences = 1,
+  isAutoReading = false,
+  onStartAutoReading,
+  onStopAutoReading,
+  onRecordingStateChange,
+  recordingTrigger = 0
 }) => {
   // Video and Stream State
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -464,6 +473,33 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
         recognitionRef.current.stop();
       } catch {}
       recognitionRef.current = null;
+    }
+  };
+
+  // Interconnection: Notify parent whenever recording state changes
+  useEffect(() => {
+    onRecordingStateChange?.(isRecording);
+  }, [isRecording, onRecordingStateChange]);
+
+  // Interconnection: Start recording if externally triggered by "Start Auto Reading"
+  useEffect(() => {
+    if (recordingTrigger && recordingTrigger > 0 && isOpen && !isRecording && stream) {
+      startRecording();
+    }
+  }, [recordingTrigger]);
+
+  // Interconnected record toggle: starts/stops camera video recording AND auto-reading together
+  const handleToggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+      if (onStopAutoReading) {
+        onStopAutoReading();
+      }
+    } else {
+      startRecording();
+      if (onStartAutoReading) {
+        onStartAutoReading();
+      }
     }
   };
 
@@ -1063,8 +1099,9 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
             </button>
           ) : (
             <button
-              onClick={startRecording}
+              onClick={handleToggleRecording}
               disabled={Boolean(permissionError)}
+              title="Starts camera recording & reading flow simultaneously"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1091,6 +1128,36 @@ export const ReadingVideoRecorder: React.FC<ReadingVideoRecorderProps> = ({
                 }}
               />
               <span>Record Video</span>
+            </button>
+          )}
+
+          {/* Connected Auto-Reading Flow Toggle */}
+          {onStartAutoReading && onStopAutoReading && (
+            <button
+              onClick={() => {
+                if (isAutoReading) {
+                  onStopAutoReading();
+                } else {
+                  onStartAutoReading();
+                }
+              }}
+              title={isAutoReading ? 'Pause passage auto-reading' : 'Start passage auto-reading'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '5px 8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: isAutoReading ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                color: isAutoReading ? '#10b981' : '#cbd5e1',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              {isAutoReading ? <Pause size={12} /> : <Play size={12} fill="currentColor" />}
+              <span>{isAutoReading ? 'Reading ON' : 'Read'}</span>
             </button>
           )}
         </div>

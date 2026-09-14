@@ -66,6 +66,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   const [textSize, setTextSize] = useState<'normal' | 'large'>('normal');
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isVideoRecorderOpen, setIsVideoRecorderOpen] = useState<boolean>(false);
+  const [isCameraRecording, setIsCameraRecording] = useState<boolean>(false);
+  const [recordingTrigger, setRecordingTrigger] = useState<number>(0);
   const [readingSeconds, setReadingSeconds] = useState<number>(0);
   const [hasCompleted, setHasCompleted] = useState<boolean>(false);
   const [estimatedWpm, setEstimatedWpm] = useState<number | null>(null);
@@ -227,24 +229,40 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
   };
 
-  // Toggle automated reading
-  const toggleAutomatedReading = () => {
-    if (isAutomatedRunning) {
-      // Pause
-      setIsAutomatedRunning(false);
-      isAutomatedRunningRef.current = false;
-      window.speechSynthesis?.cancel();
-      if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
-      return;
-    }
-
-    // Start
+  // Start automated reading
+  const startAutoReading = () => {
+    if (isAutomatedRunning) return;
     setIsAutomatedRunning(true);
     isAutomatedRunningRef.current = true;
     setHasCompleted(false);
 
     const startIndex = activeSentenceIndex >= sentences.length - 1 ? 0 : activeSentenceIndex;
     playAutomatedSentence(startIndex);
+  };
+
+  // Stop automated reading
+  const stopAutoReading = () => {
+    setIsAutomatedRunning(false);
+    isAutomatedRunningRef.current = false;
+    window.speechSynthesis?.cancel();
+    if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
+  };
+
+  // Toggle automated reading (Interconnected with camera recording)
+  const toggleAutomatedReading = () => {
+    if (isAutomatedRunning) {
+      // Pause
+      stopAutoReading();
+      return;
+    }
+
+    // Start
+    startAutoReading();
+
+    // Inter-connect: If camera mirror is open and not currently recording, trigger video recording simultaneously!
+    if (isVideoRecorderOpen && !isCameraRecording) {
+      setRecordingTrigger(prev => prev + 1);
+    }
   };
 
   // Manual jump to specific sentence
@@ -438,6 +456,15 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           <button
             onClick={toggleAutomatedReading}
             className="btn-shimmer"
+            title={
+              isCameraRecording
+                ? 'Camera recording is active! Click to pause reading'
+                : isAutomatedRunning
+                ? 'Click to pause reading flow'
+                : isVideoRecorderOpen
+                ? 'Start auto-reading and video recording together'
+                : 'Start auto reading with paced sentence flow'
+            }
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -445,23 +472,55 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               padding: '8px 16px',
               borderRadius: 'var(--radius-pill)',
               border: 'none',
-              background: isAutomatedRunning
+              background: isCameraRecording
                 ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                : isAutomatedRunning
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
                 : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: '#ffffff',
               fontWeight: 800,
               fontSize: '0.8125rem',
               cursor: 'pointer',
-              boxShadow: isAutomatedRunning
-                ? '0 0 16px rgba(239, 68, 68, 0.4)'
+              boxShadow: isCameraRecording
+                ? '0 0 16px rgba(239, 68, 68, 0.45)'
+                : isAutomatedRunning
+                ? '0 0 16px rgba(245, 158, 11, 0.4)'
                 : '0 0 16px rgba(16, 185, 129, 0.35)',
               transition: 'all 0.2s ease',
               whiteSpace: 'nowrap'
             }}
           >
-            {isAutomatedRunning ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
-            <span className="reading-btn-label-desktop">{isAutomatedRunning ? 'Pause Reading' : 'Start Auto Reading'}</span>
-            <span className="reading-btn-label-mobile">{isAutomatedRunning ? 'Pause' : 'Auto Read'}</span>
+            {isCameraRecording ? (
+              <>
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    animation: 'pulse 1s infinite'
+                  }}
+                />
+                <span className="reading-btn-label-desktop">
+                  {isAutomatedRunning ? 'Pause (Recording Live)' : 'Resume (Recording Live)'}
+                </span>
+                <span className="reading-btn-label-mobile">REC</span>
+              </>
+            ) : isAutomatedRunning ? (
+              <>
+                <Pause size={15} />
+                <span className="reading-btn-label-desktop">Pause Reading</span>
+                <span className="reading-btn-label-mobile">Pause</span>
+              </>
+            ) : (
+              <>
+                <Play size={15} fill="currentColor" />
+                <span className="reading-btn-label-desktop">
+                  {isVideoRecorderOpen ? 'Start Auto Reading & Rec' : 'Start Auto Reading'}
+                </span>
+                <span className="reading-btn-label-mobile">Auto Read</span>
+              </>
+            )}
           </button>
 
           {/* Voice Audio Toggle */}
@@ -862,6 +921,10 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         currentSentenceIndex={activeSentenceIndex}
         totalSentences={sentences.length}
         isAutoReading={isAutomatedRunning}
+        onStartAutoReading={startAutoReading}
+        onStopAutoReading={stopAutoReading}
+        onRecordingStateChange={setIsCameraRecording}
+        recordingTrigger={recordingTrigger}
       />
     </div>
   );
