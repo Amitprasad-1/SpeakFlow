@@ -28,7 +28,11 @@ import {
   Key,
   ExternalLink,
   X,
-  AlertCircle
+  AlertCircle,
+  Bot,
+  User,
+  Copy,
+  Check
 } from 'lucide-react';
 import { VoiceWaveVisualizer } from '../common/VoiceWaveVisualizer';
 import { ImpromptuSpeakingTab } from '../speaking/ImpromptuSpeakingTab';
@@ -64,6 +68,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [isKeySaved, setIsKeySaved] = useState(false);
   const [hideConnectBanner, setHideConnectBanner] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -404,14 +409,25 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       </div>
 
       {/* Main Chat Interface */}
-      <Card variant="default" padding="lg" style={{ display: 'flex', flexDirection: 'column', minHeight: '440px' }}>
+      <Card variant="default" padding="lg" style={{ display: 'flex', flexDirection: 'column', minHeight: '480px', borderRadius: '24px', background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.7) 100%)', border: '1px solid rgba(255, 255, 255, 0.08)', backdropFilter: 'blur(16px)', boxShadow: '0 16px 40px -10px rgba(0,0,0,0.4)' }}>
         {/* Scenario Banner */}
-        <div style={{ padding: 'var(--space-3) var(--space-4)', background: 'var(--color-surface-hover)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-subtle)', marginBottom: 'var(--space-4)' }}>
-          <span style={{ fontSize: 'var(--text-caption)', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase' }}>
-            Partner: {session.scenario.roleAi} • You: {session.scenario.roleUser}
-          </span>
-          <p style={{ margin: '4px 0 0', fontSize: 'var(--text-body-sm)', color: 'var(--color-text-secondary)' }}>
-            {session.scenario.goal}
+        <div className="chat-scenario-banner">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#818cf8', fontSize: '0.75rem', fontWeight: 700 }}>
+                <span className="chat-ai-live-dot" style={{ background: '#818cf8', boxShadow: '0 0 8px #818cf8' }} />
+                Partner: {session.scenario.roleAi}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: '0.75rem', fontWeight: 700 }}>
+                👤 You: {session.scenario.roleUser}
+              </span>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600, background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '6px' }}>
+              {session.scenario.title}
+            </span>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            🎯 <strong>Scenario Mission:</strong> {session.scenario.goal}
           </p>
         </div>
 
@@ -463,54 +479,86 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         )}
 
         {/* Message Stream */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-4)', maxHeight: '420px', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: 'var(--space-4)', maxHeight: '440px', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
           {session.messages.map((msg) => {
             const isAi = msg.sender === 'ai';
             return (
               <div
                 key={msg.id}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: isAi ? 'flex-start' : 'flex-end'
-                }}
+                className={`chat-message-row ${isAi ? 'ai' : 'user'}`}
               >
-                <div
-                  style={{
-                    maxWidth: '82%',
-                    padding: 'var(--space-3-5) var(--space-4)',
-                    borderRadius: isAi ? 'var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xs)' : 'var(--radius-lg) var(--radius-lg) var(--radius-xs) var(--radius-lg)',
-                    background: isAi ? 'var(--color-surface-hover)' : 'var(--color-primary)',
-                    color: isAi ? 'var(--color-text-primary)' : '#ffffff',
-                    border: `1px solid ${isAi ? 'var(--color-border)' : 'transparent'}`,
-                    lineHeight: 1.5,
-                    fontSize: 'var(--text-body)'
-                  }}
-                >
-                  {msg.text}
-                </div>
-
-                {/* Optional Coach Tip Badge underneath */}
-                {isAi && msg.feedback?.naturalAlternative && (
-                  <div style={{ marginTop: 'var(--space-1)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: 'var(--text-caption)', color: 'var(--color-primary)', background: 'var(--color-primary-subtle)', padding: '2px 8px', borderRadius: 'var(--radius-sm)' }}>
-                    <Sparkles size={12} />
-                    <span>{msg.feedback.naturalAlternative}</span>
+                {isAi && (
+                  <div className="chat-avatar-ai" title="AI Speech Coach">
+                    <Bot size={18} />
                   </div>
                 )}
 
-                {isAi && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                    <button
-                      onClick={() => handlePlayMessageAudio(msg.text)}
-                      className="speakflow-btn btn-variant-ghost"
-                      style={{ padding: '2px 6px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}
-                      title="Replay message audio"
-                    >
-                      <Volume2 size={12} style={{ marginRight: '4px' }} /> Replay
-                    </button>
-                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', opacity: 0.8 }}>
-                      {isAiConfigured ? '✨ Gemini 1.5 Flash' : '⚡ Smart Local AI'}
+                <div className={isAi ? 'chat-bubble-ai' : 'chat-bubble-user'}>
+                  {/* Bubble Header */}
+                  <div className="chat-bubble-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {isAi ? (
+                        <>
+                          <span style={{ fontWeight: 700, color: '#f1f5f9' }}>AI Coach</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: isAiConfigured ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)', color: isAiConfigured ? '#34d399' : '#818cf8', padding: '1px 8px', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600 }}>
+                            <span className="chat-ai-live-dot" style={{ background: isAiConfigured ? '#10b981' : '#818cf8' }} />
+                            {isAiConfigured ? 'Gemini Live' : 'Smart Local'}
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ fontWeight: 700, color: 'rgba(255, 255, 255, 0.95)' }}>You</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '0.6875rem', opacity: 0.65 }}>
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
+                  </div>
+
+                  {/* Bubble Message Text */}
+                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+                    {msg.text}
+                  </div>
+
+                  {/* Optional Coach Tip Badge underneath */}
+                  {isAi && msg.feedback?.naturalAlternative && (
+                    <div className="chat-tip-pill">
+                      <Sparkles size={14} style={{ flexShrink: 0 }} />
+                      <span>{msg.feedback.naturalAlternative}</span>
+                    </div>
+                  )}
+
+                  {/* AI Bubble Action Bar */}
+                  {isAi && (
+                    <div className="chat-bubble-actions">
+                      <button
+                        type="button"
+                        onClick={() => handlePlayMessageAudio(msg.text)}
+                        className="chat-action-btn"
+                        title="Listen to audio"
+                      >
+                        <Volume2 size={13} />
+                        <span>Listen</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(msg.text);
+                          setCopiedMsgId(msg.id);
+                          setTimeout(() => setCopiedMsgId(null), 1500);
+                        }}
+                        className="chat-action-btn"
+                        title="Copy text"
+                      >
+                        {copiedMsgId === msg.id ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                        <span>{copiedMsgId === msg.id ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {!isAi && (
+                  <div className="chat-avatar-user" title="You">
+                    <User size={18} />
                   </div>
                 )}
               </div>
@@ -519,22 +567,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
           {/* AI Thinking Bubble */}
           {voiceState === 'processing' && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <div
-                style={{
-                  padding: 'var(--space-3) var(--space-4)',
-                  borderRadius: 'var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xs)',
-                  background: 'var(--color-surface-hover)',
-                  color: 'var(--color-text-secondary)',
-                  border: '1px solid var(--color-border)',
-                  fontSize: 'var(--text-body-sm)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <Sparkles size={14} style={{ color: 'var(--color-primary)' }} />
-                <span>AI Coach is thinking...</span>
+            <div className="chat-message-row ai">
+              <div className="chat-avatar-ai">
+                <Bot size={18} />
+              </div>
+              <div className="chat-bubble-ai" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '12px 18px' }}>
+                <Sparkles size={16} className="btn-spinner" style={{ color: 'var(--color-primary)' }} />
+                <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>AI Coach is thinking & formulating reply...</span>
               </div>
             </div>
           )}
@@ -542,7 +581,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Text Reply Input Box */}
+        {/* Text Reply Floating Input Capsule */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -550,67 +589,58 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               handleSendTurn(inputText);
             }
           }}
-          style={{
-            display: 'flex',
-            gap: 'var(--space-2)',
-            alignItems: 'center',
-            marginBottom: 'var(--space-3)'
-          }}
+          className="chat-input-capsule"
+          style={{ marginBottom: 'var(--space-3)' }}
         >
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder={voiceState === 'listening' ? 'Listening to voice...' : 'Type your reply or use microphone below...'}
+            placeholder={voiceState === 'listening' ? '🎙️ Listening to your voice...' : 'Type your reply or tap the microphone below...'}
             disabled={voiceState === 'listening' || voiceState === 'processing'}
-            style={{
-              flex: 1,
-              padding: 'var(--space-2-5) var(--space-4)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text-primary)',
-              fontSize: 'var(--text-body-sm)',
-              outline: 'none'
-            }}
+            className="chat-input-field"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || voiceState === 'processing'}
-            className="speakflow-btn btn-variant-primary"
-            style={{
-              borderRadius: 'var(--radius-md)',
-              padding: 'var(--space-2-5) var(--space-4)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              opacity: (!inputText.trim() || voiceState === 'processing') ? 0.5 : 1,
-              cursor: (!inputText.trim() || voiceState === 'processing') ? 'not-allowed' : 'pointer',
-              fontWeight: 600,
-              fontSize: 'var(--text-body-sm)'
-            }}
+            className="chat-send-btn"
             title="Send reply"
           >
-            <Send size={14} />
-            <span>Send</span>
+            <Send size={16} />
           </button>
         </form>
 
         {/* Live Audio Visualizer */}
-        <div style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ marginBottom: 'var(--space-3)' }}>
           <VoiceWaveform active={voiceState === 'listening'} height={36} />
         </div>
 
-        {/* Live Observed Speech */}
+        {/* Live Observed Speech Pill */}
         {transcript && (
-          <div style={{ textAlign: 'center', marginBottom: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: 'var(--text-body-sm)' }}>
-            <span style={{ color: 'var(--color-text-muted)', marginRight: '6px' }}>Listening:</span>
-            <span style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>"{transcript}"</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)',
+              borderRadius: '9999px',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              margin: '0 auto 12px',
+              maxWidth: '92%',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+              animation: 'bubblePopIn 0.2s ease forwards'
+            }}
+          >
+            <span className="chat-ai-live-dot" />
+            <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Listening:</span>
+            <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.875rem' }}>"{transcript}"</span>
           </div>
         )}
 
         {/* Interaction Controls */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border-subtle)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)', paddingTop: 'var(--space-3)', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <button
             onClick={() => handleModeChange(selectedMode)}
             className="speakflow-btn btn-variant-ghost"
@@ -621,11 +651,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <RecordingButton
-              state={voiceState}
-              onToggle={handleToggleVoice}
-              durationSeconds={recordedDuration}
-            />
+            <div className={voiceState === 'listening' ? 'chat-mic-orb-listening' : ''} style={{ borderRadius: '50%' }}>
+              <RecordingButton
+                state={voiceState}
+                onToggle={handleToggleVoice}
+                durationSeconds={recordedDuration}
+              />
+            </div>
             {voiceState === 'listening' && (
               <VoiceWaveVisualizer isActive={true} size="md" color="var(--color-error)" />
             )}
