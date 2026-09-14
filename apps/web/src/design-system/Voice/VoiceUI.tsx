@@ -13,6 +13,7 @@ export interface RecordingButtonProps {
   durationSeconds?: number;
   size?: 'md' | 'lg';
   disabled?: boolean;
+  statusLabel?: string;
 }
 
 export const RecordingButton: React.FC<RecordingButtonProps> = ({
@@ -20,7 +21,8 @@ export const RecordingButton: React.FC<RecordingButtonProps> = ({
   onToggle,
   durationSeconds = 0,
   size = 'lg',
-  disabled = false
+  disabled = false,
+  statusLabel
 }) => {
   const isRecording = state === 'listening';
   const isProcessing = state === 'processing';
@@ -111,13 +113,15 @@ export const RecordingButton: React.FC<RecordingButtonProps> = ({
                 : 'var(--color-text-secondary)'
           }}
         >
-          {state === 'listening'
-            ? `Listening • ${durationSeconds}s`
-            : state === 'processing'
-            ? 'Analyzing speech...'
-            : state === 'result'
-            ? 'Evaluation ready'
-            : 'Tap to speak'}
+          {statusLabel || (
+            state === 'listening'
+              ? `Listening • ${durationSeconds}s`
+              : state === 'processing'
+              ? 'Analyzing speech...'
+              : state === 'result'
+              ? 'Evaluation ready'
+              : 'Tap to speak'
+          )}
         </span>
       </div>
     </div>

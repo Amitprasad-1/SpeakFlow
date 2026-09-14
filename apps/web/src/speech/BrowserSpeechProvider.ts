@@ -145,19 +145,32 @@ export class BrowserSpeechProvider implements SpeechProvider {
       };
 
       this.recognition.onresult = (event: any) => {
-        let transcript = '';
+        let fullTranscript = '';
+        let hasFinal = false;
+        for (let i = 0; i < event.results.length; i++) {
+          const res = event.results[i];
+          if (res && res[0]) {
+            fullTranscript += res[0].transcript;
+            if (res.isFinal) {
+              hasFinal = true;
+            }
+          }
+        }
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const res = event.results[i];
-          const text = res[0].transcript;
-          transcript += text;
-          if (res.isFinal) {
-            const words = text.trim().split(/\s+/);
+          if (res && res.isFinal && res[0]) {
+            const words = res[0].transcript.trim().split(/\s+/);
             words.forEach((w: string) => {
-              callbacks.onWordDetected?.(w, true, Date.now());
+              if (w) callbacks.onWordDetected?.(w, true, Date.now());
             });
           }
         }
-        callbacks.onTranscriptUpdate?.(transcript, false);
+        callbacks.onTranscriptUpdate?.(fullTranscript, hasFinal);
+      };
+
+      this.recognition.onspeechend = () => {
+        callbacks.onSpeechEnd?.();
       };
 
       this.recognition.onerror = (event: any) => {

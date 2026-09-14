@@ -75,6 +75,7 @@ export interface RecognitionCallbacks {
   onStart?: () => void;
   onWordDetected?: (word: string, isFinal: boolean, timestamp: number) => void;
   onTranscriptUpdate?: (transcript: string, isFinal: boolean) => void;
+  onSpeechEnd?: () => void;
   onError?: (error: string) => void;
   onEnd?: () => void;
 }

@@ -71,6 +71,11 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const silenceTimerRef = useRef<any>(null);
+  const durationIntervalRef = useRef<any>(null);
+  const latestTranscriptRef = useRef<string>('');
+  const isSubmittingTurnRef = useRef<boolean>(false);
+  const [hasDetectedSpeech, setHasDetectedSpeech] = useState(false);
 
   // Check Gemini configuration on mount
   useEffect(() => {
@@ -82,18 +87,34 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [session.messages, isSpeakingAi]);
 
+  const clearVoiceTimers = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
+    }
+  };
+
   // Clean up speech on unmount
   useEffect(() => {
     return () => {
+      clearVoiceTimers();
       speechProvider.dispose();
     };
   }, [speechProvider]);
 
   const handleModeChange = (mode: ConversationMode) => {
+    clearVoiceTimers();
+    speechProvider.stopRealtimeRecognition();
+    isSubmittingTurnRef.current = false;
     setSelectedMode(mode);
     setReviewReport(null);
     setTranscript('');
     setInputText('');
+    setHasDetectedSpeech(false);
     setVoiceState('ready');
     const newSession = ConversationEngine.startSession(mode);
     setSession(newSession);
@@ -103,9 +124,11 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     const textToSubmit = rawText.trim();
     if (!textToSubmit) return;
 
+    clearVoiceTimers();
     setVoiceState('processing');
     setInputText('');
     setTranscript('');
+    setHasDetectedSpeech(false);
     setRecordedDuration(0);
 
     // 1. Append user message to conversation
@@ -149,6 +172,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
       setSession(updatedSession);
       setVoiceState('ready');
+      isSubmittingTurnRef.current = false;
 
       // 4. Speak AI response via speech synthesis
       setIsSpeakingAi(true);
@@ -168,6 +192,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       const { updatedSession, replyMessage } = ConversationEngine.processUserTurn(session, textToSubmit);
       setSession(updatedSession);
       setVoiceState('ready');
+      isSubmittingTurnRef.current = false;
       setIsSpeakingAi(true);
       speechProvider.synthesizeSpeech(replyMessage.text, { rate: 1.0 }).finally(() => {
         setIsSpeakingAi(false);
@@ -175,24 +200,103 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     }
   };
 
-  const handleToggleVoice = () => {
-    if (voiceState === 'ready') {
-      setVoiceState('listening');
-      setRecordedDuration(1);
-      setTranscript('');
+  const stopAndSubmitVoiceTurn = (forcedText?: string) => {
+    if (isSubmittingTurnRef.current) return;
+    isSubmittingTurnRef.current = true;
+    clearVoiceTimers();
+    speechProvider.stopRealtimeRecognition();
 
-      speechProvider.startRealtimeRecognition({
-        onTranscriptUpdate: (text) => setTranscript(text),
-        onError: () => {}
-      });
-    } else if (voiceState === 'listening') {
-      speechProvider.stopRealtimeRecognition();
-      const textToSubmit = transcript.trim() || "Yes, I understand and agree with that approach.";
+    const textToSubmit = (forcedText ?? latestTranscriptRef.current).trim();
+    if (textToSubmit) {
       handleSendTurn(textToSubmit);
     } else {
       setVoiceState('ready');
       setRecordedDuration(0);
       setTranscript('');
+      setHasDetectedSpeech(false);
+      isSubmittingTurnRef.current = false;
+    }
+  };
+
+  const handleToggleVoice = () => {
+    if (voiceState === 'ready') {
+      isSubmittingTurnRef.current = false;
+      latestTranscriptRef.current = '';
+      setTranscript('');
+      setHasDetectedSpeech(false);
+      setRecordedDuration(0);
+      setVoiceState('listening');
+
+      clearVoiceTimers();
+      durationIntervalRef.current = setInterval(() => {
+        setRecordedDuration((prev) => prev + 1);
+      }, 1000);
+
+      speechProvider.startRealtimeRecognition({
+        onStart: () => {
+          // Started listening
+        },
+        onTranscriptUpdate: (fullText) => {
+          if (isSubmittingTurnRef.current) return;
+          latestTranscriptRef.current = fullText;
+          setTranscript(fullText);
+
+          const trimmed = fullText.trim();
+          if (trimmed.length > 0) {
+            setHasDetectedSpeech(true);
+            // Reset silence timer on every new token
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+            }
+            // Auto turn-off when user finishes sentence / stops speaking (1.6s natural pause)
+            silenceTimerRef.current = setTimeout(() => {
+              stopAndSubmitVoiceTurn();
+            }, 1600);
+          }
+        },
+        onSpeechEnd: () => {
+          // Native browser silence detected
+          if (!isSubmittingTurnRef.current && latestTranscriptRef.current.trim().length > 0) {
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+            }
+            silenceTimerRef.current = setTimeout(() => {
+              stopAndSubmitVoiceTurn();
+            }, 800);
+          }
+        },
+        onEnd: () => {
+          // Browser ended recognition
+          if (!isSubmittingTurnRef.current) {
+            if (latestTranscriptRef.current.trim().length > 0) {
+              stopAndSubmitVoiceTurn();
+            } else {
+              setVoiceState('ready');
+              clearVoiceTimers();
+              setRecordedDuration(0);
+              setHasDetectedSpeech(false);
+            }
+          }
+        },
+        onError: (err) => {
+          console.warn('Realtime speech error:', err);
+          if (!isSubmittingTurnRef.current && !latestTranscriptRef.current.trim()) {
+            setVoiceState('ready');
+            clearVoiceTimers();
+            setRecordedDuration(0);
+            setHasDetectedSpeech(false);
+          }
+        }
+      });
+    } else if (voiceState === 'listening') {
+      // User clicked mic button manually to finish right away
+      stopAndSubmitVoiceTurn();
+    } else {
+      setVoiceState('ready');
+      clearVoiceTimers();
+      setRecordedDuration(0);
+      setTranscript('');
+      setHasDetectedSpeech(false);
     }
   };
 
@@ -622,9 +726,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexWrap: 'wrap',
               gap: '8px',
               padding: '8px 18px',
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, rgba(99, 102, 241, 0.16) 100%)',
               borderRadius: '9999px',
               border: '1px solid rgba(16, 185, 129, 0.35)',
               margin: '0 auto 12px',
@@ -633,9 +738,26 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               animation: 'bubblePopIn 0.2s ease forwards'
             }}
           >
-            <span className="chat-ai-live-dot" />
-            <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Listening:</span>
+            <span className="chat-ai-live-dot" style={{ background: '#10b981' }} />
+            <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Speaking:</span>
             <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.875rem' }}>"{transcript}"</span>
+            <span
+              style={{
+                fontSize: '0.6875rem',
+                color: '#34d399',
+                background: 'rgba(16, 185, 129, 0.2)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                padding: '2px 8px',
+                borderRadius: '9999px',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginLeft: '4px'
+              }}
+            >
+              <span>Auto-sends on pause ⏸️</span>
+            </span>
           </div>
         )}
 
@@ -650,19 +772,49 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             <span>Restart</span>
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <div className={voiceState === 'listening' ? 'chat-mic-orb-listening' : ''} style={{ borderRadius: '50%' }}>
-              <RecordingButton
-                state={voiceState}
-                onToggle={handleToggleVoice}
-                durationSeconds={recordedDuration}
-              />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div className={voiceState === 'listening' ? 'chat-mic-orb-listening' : ''} style={{ borderRadius: '50%' }}>
+                <RecordingButton
+                  state={voiceState}
+                  onToggle={handleToggleVoice}
+                  durationSeconds={recordedDuration}
+                  statusLabel={
+                    voiceState === 'listening'
+                      ? (hasDetectedSpeech
+                          ? 'Auto-sends on pause ⏸️'
+                          : `Listening • ${recordedDuration}s`)
+                      : undefined
+                  }
+                />
+              </div>
+              {voiceState === 'listening' && (
+                <VoiceWaveVisualizer isActive={true} size="md" color="var(--color-error)" />
+              )}
+              {isSpeakingAi && (
+                <VoiceWaveVisualizer isActive={true} size="md" color="var(--color-primary)" />
+              )}
             </div>
+
+            {/* Hands-Free Auto Turn-Off Micro Badge */}
             {voiceState === 'listening' && (
-              <VoiceWaveVisualizer isActive={true} size="md" color="var(--color-error)" />
-            )}
-            {isSpeakingAi && (
-              <VoiceWaveVisualizer isActive={true} size="md" color="var(--color-primary)" />
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.6875rem',
+                  color: '#34d399',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  padding: '3px 10px',
+                  borderRadius: '9999px',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  animation: 'bubblePopIn 0.2s ease forwards'
+                }}
+              >
+                <Zap size={11} />
+                <span>Hands-free: stops & sends when you pause</span>
+              </div>
             )}
           </div>
 
