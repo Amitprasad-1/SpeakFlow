@@ -60,7 +60,15 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
     return false;
   });
-  const [pacerSpeed, setPacerSpeed] = useState<120 | 150 | 180 | 210>(150);
+  const [pacerSpeed, setPacerSpeed] = useState<120 | 150 | 180 | 210>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('speakflow_reading_pacer_speed');
+      if (saved && ['120', '150', '180', '210'].includes(saved)) {
+        return Number(saved) as 120 | 150 | 180 | 210;
+      }
+    }
+    return 150;
+  });
   const [sentenceProgress, setSentenceProgress] = useState<number>(0);
 
   const [textSize, setTextSize] = useState<'normal' | 'large'>('normal');
@@ -83,6 +91,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   voiceEnabledRef.current = voiceEnabled;
   const activeSentenceIndexRef = useRef<number>(activeSentenceIndex);
   activeSentenceIndexRef.current = activeSentenceIndex;
+  const pacerSpeedRef = useRef<120 | 150 | 180 | 210>(pacerSpeed);
+  pacerSpeedRef.current = pacerSpeed;
+  const playAutomatedSentenceRef = useRef<(index: number) => void>(() => {});
 
   // Reset when day or passage changes
   useEffect(() => {
@@ -125,19 +136,19 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     if (!sentence) return;
 
     const utterance = new SpeechSynthesisUtterance(sentence);
-    utterance.rate = getSpeechRate(pacerSpeed);
+    utterance.rate = getSpeechRate(pacerSpeedRef.current);
     utterance.pitch = 1.0;
 
     utterance.onend = () => {
       // When sentence finishes speaking, advance if auto reading is active and voice is still ON
       if (isAutomatedRunningRef.current && voiceEnabledRef.current) {
         if (index + 1 < sentences.length) {
-          playAutomatedSentence(index + 1);
+          playAutomatedSentenceRef.current(index + 1);
         } else {
           setIsAutomatedRunning(false);
           isAutomatedRunningRef.current = false;
           setHasCompleted(true);
-          setEstimatedWpm(pacerSpeed);
+          setEstimatedWpm(pacerSpeedRef.current);
         }
       }
     };
@@ -146,7 +157,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       console.warn('Speech synthesis utterance error:', e);
       if (isAutomatedRunningRef.current && voiceEnabledRef.current) {
         if (index + 1 < sentences.length) {
-          playAutomatedSentence(index + 1);
+          playAutomatedSentenceRef.current(index + 1);
         }
       }
     };
@@ -161,7 +172,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       setIsAutomatedRunning(false);
       isAutomatedRunningRef.current = false;
       setHasCompleted(true);
-      setEstimatedWpm(pacerSpeed);
+      setEstimatedWpm(pacerSpeedRef.current);
       window.speechSynthesis?.cancel();
       return;
     }
@@ -173,8 +184,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
     const currentSentence = sentences[index] || '';
     const wordCount = currentSentence.split(/\s+/).filter(Boolean).length;
-    // Expected reading duration based on selected WPM
-    const durationMs = Math.max(2200, (wordCount / pacerSpeed) * 60 * 1000);
+    // Expected reading duration based on selected WPM (min 1200ms)
+    const durationMs = Math.max(1200, (wordCount / pacerSpeedRef.current) * 60 * 1000);
 
     // 1. If voice audio is enabled, speak the sentence aloud
     if (voiceEnabledRef.current) {
@@ -196,16 +207,30 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         clearInterval(pacerTimerRef.current);
         if (isAutomatedRunningRef.current) {
           if (index + 1 < sentences.length) {
-            playAutomatedSentence(index + 1);
+            playAutomatedSentenceRef.current(index + 1);
           } else {
             setIsAutomatedRunning(false);
             isAutomatedRunningRef.current = false;
             setHasCompleted(true);
-            setEstimatedWpm(pacerSpeed);
+            setEstimatedWpm(pacerSpeedRef.current);
           }
         }
       }
     }, intervalMs);
+  };
+  playAutomatedSentenceRef.current = playAutomatedSentence;
+
+  // Handle WPM Speed Preset change (immediate reactive update)
+  const handlePacerSpeedChange = (wpm: 120 | 150 | 180 | 210) => {
+    setPacerSpeed(wpm);
+    pacerSpeedRef.current = wpm;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('speakflow_reading_pacer_speed', String(wpm));
+    }
+    // If auto-reading is currently active, immediately re-trigger current sentence with new rate and timing!
+    if (isAutomatedRunningRef.current) {
+      playAutomatedSentence(activeSentenceIndexRef.current);
+    }
   };
 
   // Handle Voice Toggle Button click (instant reactive connection)
@@ -342,7 +367,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   const playSingleAudio = (idx: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (sentences[idx]) {
-      speakText(sentences[idx], { rate: getSpeechRate(pacerSpeed) });
+      speakText(sentences[idx], { rate: getSpeechRate(pacerSpeedRef.current) });
     }
   };
 
@@ -552,7 +577,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             {([120, 150, 180, 210] as const).map(wpm => (
               <button
                 key={wpm}
-                onClick={() => setPacerSpeed(wpm)}
+                onClick={() => handlePacerSpeedChange(wpm)}
+                title={`Set reading pace to ${wpm} WPM`}
+                aria-label={`${wpm} words per minute`}
                 style={{
                   padding: '3px 7px',
                   borderRadius: 'var(--radius-pill)',
