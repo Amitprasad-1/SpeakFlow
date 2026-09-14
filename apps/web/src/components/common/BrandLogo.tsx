@@ -54,26 +54,80 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         aria-hidden="true"
       >
         <svg
-          width={iconDimensions * 0.64}
-          height={iconDimensions * 0.64}
-          viewBox="0 0 24 24"
+          width={iconDimensions * 0.74}
+          height={iconDimensions * 0.74}
+          viewBox="0 0 32 32"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Modern Voice Speech Flow Bubble */}
+          {/* Open Book Outline & Layered Pages */}
           <path
-            d="M12 2C6.48 2 2 6.03 2 11C2 13.88 3.5 16.42 5.86 17.98L4.5 22L9.2 20.35C10.09 20.76 11.02 21 12 21C17.52 21 22 16.97 22 11C22 6.03 17.52 2 12 2Z"
-            fill="currentColor"
-            fillOpacity="0.22"
-            stroke="currentColor"
-            strokeWidth="2.2"
+            d="M16 23C11.5 21 6 21.2 3.5 22.5V8.5C6 7.2 11.5 7 16 9M16 23C20.5 21 26 21.2 28.5 22.5V8.5C26 7.2 20.5 7 16 9"
+            stroke="#ffffff"
+            strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {/* Pulsating Voice Frequency Waves */}
-          <rect x="7.5" y="9" width="2" height="5" rx="1" fill="currentColor" />
-          <rect x="11" y="6" width="2" height="11" rx="1" fill="currentColor" />
-          <rect x="14.5" y="8" width="2" height="7" rx="1" fill="currentColor" />
+          {/* Lower Page Layer Accent */}
+          <path
+            d="M3.5 25.2C6 23.9 11.5 23.8 16 25.6C20.5 23.8 26 23.9 28.5 25.2"
+            stroke="#a7f3d0"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+
+          {/* Acoustic Voice Waves on Left Page */}
+          <path
+            d="M7.5 12C6.8 13.5 6.8 16.5 7.5 18"
+            stroke="#38bdf8"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M10 10.5C9 12.8 9 17.2 10 19.5"
+            stroke="#bae6fd"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+
+          {/* Acoustic Voice Waves on Right Page */}
+          <path
+            d="M24.5 12C25.2 13.5 25.2 16.5 24.5 18"
+            stroke="#38bdf8"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M22 10.5C23 12.8 23 17.2 22 19.5"
+            stroke="#bae6fd"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+
+          {/* Central Studio Microphone */}
+          {/* Mic Grille Head */}
+          <circle cx="16" cy="9.5" r="3.2" stroke="#ffffff" strokeWidth="1.8" fill="rgba(56, 189, 248, 0.28)" />
+          <line x1="13.2" y1="10.5" x2="18.8" y2="10.5" stroke="#ffffff" strokeWidth="1.2" />
+
+          {/* Mic Handle Body */}
+          <path
+            d="M14.2 12.7L14.7 19.5C14.7 20.3 15.3 21 16 21C16.7 21 17.3 20.3 17.3 19.5L17.8 12.7"
+            stroke="#ffffff"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="rgba(255, 255, 255, 0.18)"
+          />
+          {/* Handle Indicator Dot */}
+          <circle cx="16" cy="16" r="0.65" fill="#a7f3d0" />
+
+          {/* Microphone Audio Cable Curling Out */}
+          <path
+            d="M16 21C16 23.5 14 24.5 12.5 24.5C11 24.5 10 23.5 10 22"
+            stroke="#a7f3d0"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
         </svg>
       </div>
 
@@ -103,7 +157,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 marginTop: '2px'
               }}
             >
-              AI Communication Coach
+              Speaking & Reading Coach
             </span>
           )}
         </div>

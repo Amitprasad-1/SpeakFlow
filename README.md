@@ -1,6 +1,10 @@
-# 🎙️ SpeakFlow
-
 <div align="center">
+
+<img src="apps/web/public/logo.jpg" alt="SpeakFlow Speaking and Reading Coach Logo" width="160" style="border-radius: 32px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);" />
+
+# SpeakFlow
+
+**Speaking & Reading Coach • AI English Speech, Pronunciation & Communication**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -8,8 +12,6 @@
 [![Vite](https://img.shields.io/badge/Vite-5.2-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Expo](https://img.shields.io/badge/Expo-SDK_51-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
 [![Tests](https://img.shields.io/badge/Tests-22%2F22_Passing-brightgreen?style=for-the-badge&logo=node.js&logoColor=white)](packages/core/test)
-
-**Production AI English Speech, Pronunciation & Communication Coach**
 
 *Transform your spoken English with real-time phoneme evaluation, adaptive daily practice sessions, video reading studio, grammar labs, and conversational intelligence.*
 
