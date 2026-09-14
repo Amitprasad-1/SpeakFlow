@@ -43,6 +43,60 @@ export class GeminiAIService {
     return Boolean(this.getApiKey());
   }
 
+  private static activeModel: string = 'gemini-3.6-flash';
+  private static readonly CANDIDATE_MODELS: string[] = [
+    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-1.5-flash'
+  ];
+
+  public static getActiveModel(): string {
+    return this.activeModel;
+  }
+
+  /**
+   * Executes a Gemini generateContent request trying the active/best available model with automatic fallback.
+   */
+  public static async executeGeminiRequest(apiKey: string, payload: any): Promise<{ ok: boolean; data?: any; errorMsg?: string }> {
+    const modelsToTry = [
+      this.activeModel,
+      ...this.CANDIDATE_MODELS.filter(m => m !== this.activeModel)
+    ];
+
+    let lastError = '';
+    for (const model of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          this.activeModel = model;
+          const data = await res.json();
+          return { ok: true, data };
+        }
+
+        const errData = await res.json().catch(() => ({}));
+        lastError = errData.error?.message || `HTTP ${res.status}`;
+        // If 404 or model not available, try next model
+        if (res.status === 404 || lastError.includes('not found') || lastError.includes('no longer available')) {
+          continue;
+        } else {
+          // If auth or quota error, no need to loop through models
+          break;
+        }
+      } catch (e: any) {
+        lastError = e.message;
+      }
+    }
+
+    return { ok: false, errorMsg: lastError };
+  }
+
   /**
    * Tests the Gemini API Key connection.
    */
@@ -52,28 +106,16 @@ export class GeminiAIService {
       return { success: false, message: 'No API key provided.' };
     }
 
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Respond with exactly two words: "Connected successfully".' }] }]
-        })
-      });
+    const res = await this.executeGeminiRequest(apiKey, {
+      contents: [{ parts: [{ text: 'Respond with: Connected successfully.' }] }],
+      generationConfig: { maxOutputTokens: 200 }
+    });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        const errMsg = errorData.error?.message || `HTTP ${res.status}`;
-        return { success: false, message: `Gemini API Error: ${errMsg}` };
-      }
-
-      const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      return { success: true, message: `Connected to Gemini 1.5 Flash! (${reply.trim()})` };
-    } catch (err: any) {
-      return { success: false, message: `Network error connecting to Gemini: ${err.message}` };
+    if (!res.ok) {
+      return { success: false, message: `Gemini API Error: ${res.errorMsg}` };
     }
+
+    return { success: true, message: `Connected to Google Gemini (${this.activeModel})!` };
   }
 
   /**
@@ -103,8 +145,6 @@ RULES:
 6. Do NOT use markdown asterisks, bullet points, numbered lists, or headers. Output pure conversational text.`;
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
       // Build strictly alternating multi-turn contents for Gemini API:
       // (Gemini requires: user -> model -> user -> model -> user)
       const pastMessages: ChatMessage[] = [];
@@ -160,30 +200,24 @@ RULES:
         });
       }
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 250,
-            topP: 0.95
-          }
-        })
+      const result = await this.executeGeminiRequest(apiKey, {
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        contents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 800,
+          topP: 0.95
+        }
       });
 
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => '');
-        console.warn('Gemini request failed (status ' + response.status + '):', errBody);
+      if (!result.ok) {
+        console.warn('Gemini request failed:', result.errorMsg);
         return this.getOfflineFallbackReply(params.userMessage, params.mode, params.scenarioTitle, params.history);
       }
 
-      const data = await response.json();
-      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      const generatedText = result.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
       if (!generatedText) {
         return this.getOfflineFallbackReply(params.userMessage, params.mode, params.scenarioTitle, params.history);
