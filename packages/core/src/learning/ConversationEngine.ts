@@ -113,6 +113,29 @@ export class ConversationEngine {
   private static generatePartnerReply(scenario: SpeakingScenario, lastUserText: string, turnIndex: number): string {
     const isInterview = scenario.category === 'job_interview' || scenario.category === 'hr_interview';
     const isWorkplace = scenario.category === 'workplace_conversation' || scenario.category === 'meeting_discussion';
+    const text = (lastUserText || '').toLowerCase().trim();
+
+    // Responsive greetings and small talk check
+    if (/\b(how\s+are\s+you|how're\s+you|how\s+is\s+it\s+going|how\s+do\s+you\s+do)\b/i.test(text)) {
+      return isInterview
+        ? "I'm doing well, thank you for asking! I'm glad to speak with you today. Are you ready to begin our interview discussion?"
+        : "I'm doing great, thank you! I'm excited to practice English with you today. How is your day going, and what would you like to talk about?";
+    }
+
+    if (/^(hi|hello|hey|good\s+(morning|afternoon|evening))[\s!.,?]*$/i.test(text) ||
+        (/\b(hi|hello|hey)\b/i.test(text) && text.split(/\s+/).length <= 3)) {
+      return isInterview
+        ? "Hello! Welcome to the interview. Thank you for taking the time to speak with me today. To get started, could you tell me a little about yourself?"
+        : "Hello there! It's great to connect. What topic or scenario would you like to practice today?";
+    }
+
+    if (/\b(do\s+you\s+know\s+my\s+name|what('?s|\s+is)\s+my\s+name)\b/i.test(text)) {
+      return "I don't know your name yet! What should I call you? Feel free to introduce yourself!";
+    }
+
+    if (/\b(who\s+are\s+you|what\s+are\s+you)\b/i.test(text)) {
+      return "I am SpeakFlow AI, your conversation partner and speaking coach! I'm here to practice real-world spoken English with you. What would you like to practice?";
+    }
 
     if (turnIndex === 1) {
       if (isInterview) {

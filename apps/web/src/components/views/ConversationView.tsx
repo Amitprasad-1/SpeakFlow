@@ -24,7 +24,11 @@ import {
   Zap,
   Info,
   Mic,
-  PenTool
+  PenTool,
+  Key,
+  ExternalLink,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { VoiceWaveVisualizer } from '../common/VoiceWaveVisualizer';
 import { ImpromptuSpeakingTab } from '../speaking/ImpromptuSpeakingTab';
@@ -52,6 +56,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [reviewReport, setReviewReport] = useState<PostConversationReview | null>(null);
   const [isSpeakingAi, setIsSpeakingAi] = useState(false);
   const [isAiConfigured, setIsAiConfigured] = useState(() => GeminiAIService.isConfigured());
+
+  // In-chat key connector state
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [keyInput, setKeyInput] = useState('');
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [isKeySaved, setIsKeySaved] = useState(false);
+  const [hideConnectBanner, setHideConnectBanner] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -106,12 +118,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     setSession(sessionWithUser);
 
     try {
-      // 2. Query Gemini 1.5 Flash (with automatic fallback to offline heuristic)
+      // 2. Query Gemini 1.5 Flash (with automatic fallback to intelligent offline engine)
       const coachResponse = await GeminiAIService.generateConversationReply({
         userMessage: textToSubmit,
         mode: session.mode,
         scenarioTitle: session.scenario.title,
-        history: sessionWithUser.messages.map(m => ({ sender: m.sender, text: m.text }))
+        history: session.messages.map(m => ({ sender: m.sender, text: m.text }))
       });
 
       // 3. Append AI Coach response
@@ -294,49 +306,65 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <Badge variant="level">{session.scenario.title}</Badge>
           <div style={{ marginLeft: 'auto' }}>
             {isAiConfigured ? (
-              <span
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyInput(GeminiAIService.getApiKey() || '');
+                  setTestResult(null);
+                  setShowKeyModal(true);
+                }}
+                className="tap-interactive"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
-                  padding: '3px 10px',
+                  gap: '6px',
+                  padding: '5px 12px',
                   borderRadius: 'var(--radius-full)',
                   fontSize: '0.75rem',
                   fontWeight: 600,
                   background: 'rgba(16, 185, 129, 0.12)',
                   color: '#10b981',
-                  border: '1px solid rgba(16, 185, 129, 0.25)'
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  cursor: 'pointer'
                 }}
-                title="Powered by live Google Gemini 1.5 Flash LLM"
+                title="Google Gemini 1.5 Flash is active! Tap to view or edit key."
               >
-                <Sparkles size={12} />
-                Gemini 1.5 Flash Active
-              </span>
+                <Sparkles size={13} />
+                <span>Live Gemini 1.5 Flash</span>
+              </button>
             ) : (
-              <span
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyInput(GeminiAIService.getApiKey() || '');
+                  setTestResult(null);
+                  setShowKeyModal(true);
+                }}
+                className="tap-interactive"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
-                  padding: '3px 10px',
+                  gap: '6px',
+                  padding: '5px 12px',
                   borderRadius: 'var(--radius-full)',
                   fontSize: '0.75rem',
-                  fontWeight: 500,
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text-secondary)',
-                  border: '1px solid var(--color-border)'
+                  fontWeight: 600,
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  color: 'var(--color-primary)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  cursor: 'pointer'
                 }}
-                title="Local heuristic coaching active. Add your Gemini API key in Profile & Settings for live LLM conversations."
+                title="Smart Offline AI active. Tap to connect free Google Gemini for live ChatGPT/Gemini voice."
               >
-                <Zap size={12} />
-                Offline AI Coach
-              </span>
+                <Zap size={13} />
+                <span>Offline AI • Connect Free Gemini</span>
+              </button>
             )}
           </div>
         </div>
         <h1 className="typography-h1">AI English Conversation Studio</h1>
         <p className="typography-body" style={{ marginTop: 'var(--space-1)', maxWidth: '65ch' }}>
-          Engage in natural, single-question dialogue. SpeakFlow listens, responds in real-time, and gives supportive guidance.
+          Engage in natural spoken dialogue. SpeakFlow listens, understands your context, and responds like an interactive conversational coach.
         </p>
       </div>
 
@@ -387,6 +415,53 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </p>
         </div>
 
+        {/* Dismissible Gemini Connect Callout */}
+        {!isAiConfigured && !hideConnectBanner && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.08) 100%)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              marginBottom: 'var(--space-3)',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8125rem' }}>
+              <Sparkles size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-text-primary)' }}>
+                Want live <strong>ChatGPT / Gemini Voice</strong> level conversational AI? Connect your free Gemini API Key in seconds.
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyInput(GeminiAIService.getApiKey() || '');
+                  setTestResult(null);
+                  setShowKeyModal(true);
+                }}
+                className="speakflow-btn btn-variant-primary"
+                style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px' }}
+              >
+                Connect Free Key
+              </button>
+              <button
+                type="button"
+                onClick={() => setHideConnectBanner(true)}
+                style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.75rem', padding: '2px 4px' }}
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Message Stream */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-4)', maxHeight: '420px', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
           {session.messages.map((msg) => {
@@ -424,14 +499,19 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 )}
 
                 {isAi && (
-                  <button
-                    onClick={() => handlePlayMessageAudio(msg.text)}
-                    className="speakflow-btn btn-variant-ghost"
-                    style={{ padding: '2px 6px', marginTop: '2px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}
-                    title="Replay message audio"
-                  >
-                    <Volume2 size={12} style={{ marginRight: '4px' }} /> Replay
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                    <button
+                      onClick={() => handlePlayMessageAudio(msg.text)}
+                      className="speakflow-btn btn-variant-ghost"
+                      style={{ padding: '2px 6px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}
+                      title="Replay message audio"
+                    >
+                      <Volume2 size={12} style={{ marginRight: '4px' }} /> Replay
+                    </button>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', opacity: 0.8 }}>
+                      {isAiConfigured ? '✨ Gemini 1.5 Flash' : '⚡ Smart Local AI'}
+                    </span>
+                  </div>
                 )}
               </div>
             );
@@ -636,6 +716,169 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       )}
       </div>
     )}
-  </div>
-);
+
+      {/* Quick Gemini API Key Activation Modal */}
+      {showKeyModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 'var(--space-4)'
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: '520px',
+              width: '100%',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              padding: 'var(--space-6)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              position: 'relative'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #6366f1, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Sparkles size={16} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.125rem' }}>Connect Live Google Gemini</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowKeyModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, marginBottom: 'var(--space-4)' }}>
+              Unlock real-time, ChatGPT & Gemini-level conversational voice intelligence. Google provides <strong>100% Free API keys</strong> at Google AI Studio (no credit card required).
+            </p>
+
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                Google Gemini API Key
+              </label>
+              <input
+                type="password"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface-hover)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '0.875rem',
+                  fontFamily: 'monospace',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            {testResult && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '0.8125rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: 'var(--space-4)',
+                  background: testResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                  border: testResult.success ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                  color: testResult.success ? '#10b981' : '#f87171'
+                }}
+              >
+                {testResult.success ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+                <span>{testResult.message}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: 'var(--space-5)' }}>
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '0.75rem',
+                  color: 'var(--color-primary)',
+                  textDecoration: 'none',
+                  fontWeight: 600
+                }}
+              >
+                <span>Get Free Key at Google AI Studio</span>
+                <ExternalLink size={12} />
+              </a>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!keyInput.trim()) return;
+                  setIsTestingKey(true);
+                  setTestResult(null);
+                  const res = await GeminiAIService.testConnection(keyInput.trim());
+                  setIsTestingKey(false);
+                  setTestResult(res);
+                }}
+                disabled={!keyInput.trim() || isTestingKey}
+                className="speakflow-btn btn-variant-ghost"
+                style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+              >
+                {isTestingKey ? 'Testing...' : 'Test Connection'}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setShowKeyModal(false)}
+                className="speakflow-btn btn-variant-ghost"
+                style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmed = keyInput.trim();
+                  const settings = BrowserStorage.getSettings();
+                  settings.geminiApiKey = trimmed;
+                  settings.aiProviderType = trimmed ? 'gemini' : 'local';
+                  BrowserStorage.saveSettings(settings);
+                  setIsAiConfigured(Boolean(trimmed));
+                  setIsKeySaved(true);
+                  setTimeout(() => {
+                    setIsKeySaved(false);
+                    setShowKeyModal(false);
+                  }, 800);
+                }}
+                className="speakflow-btn btn-variant-primary"
+                style={{ padding: '8px 18px', fontSize: '0.8125rem', fontWeight: 700 }}
+              >
+                {isKeySaved ? 'Activated! ✓' : 'Save & Activate Live AI'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };

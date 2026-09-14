@@ -88,55 +88,85 @@ export class GeminiAIService {
     const apiKey = this.getApiKey();
 
     if (!apiKey) {
-      return {
-        replyText: this.getOfflineFallbackReply(params.userMessage, params.mode),
-        source: 'offline_heuristic'
-      };
+      return this.getOfflineFallbackReply(params.userMessage, params.mode, params.scenarioTitle, params.history);
     }
 
-    const systemPrompt = `You are SpeakFlow AI, an elite, warm, and supportive English communication coach and conversational partner.
+    const systemPrompt = `You are SpeakFlow AI, an elite, warm, and supportive English communication coach and conversational partner, functioning like Google Gemini or ChatGPT Voice.
 The user is practicing their spoken English in ${params.mode.toUpperCase()} mode for the scenario: "${params.scenarioTitle}".
 
 RULES:
-1. Speak naturally as a dialogue partner. Keep responses conversational, concise (2-3 sentences), and friendly so it can be spoken via text-to-speech.
-2. If the user makes a minor grammar, vocabulary, or pronunciation phrasing slip, gently weave one brief natural alternative in parentheses (e.g., "(A natural way to say that is: '...')").
-3. Always finish with ONE engaging question or prompt to encourage the user to keep speaking.
-4. Avoid markdown bullet points or long paragraphs; keep it strictly like human dialogue.`;
+1. Listen carefully to what the user ACTUALLY said and address their specific points, questions, greetings, or comments directly.
+2. If the user asks about you, asks how you are, or asks your name, answer naturally and warmly as a friendly coach.
+3. Keep responses conversational, concise (2-3 sentences max), and natural so it can be spoken smoothly via text-to-speech.
+4. If the user makes a minor grammar, vocabulary, or phrasing slip, gently weave one brief natural alternative in parentheses (e.g., "(A natural way to say that is: '...')").
+5. Always finish with ONE engaging question or prompt to encourage the user to keep speaking.
+6. Do NOT use markdown asterisks, bullet points, numbered lists, or headers. Output pure conversational text.`;
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-      // Format conversation history for Gemini API
-      const contents = [
-        {
-          role: 'user',
-          parts: [{ text: `SYSTEM INSTRUCTIONS:\n${systemPrompt}\n\nLet's start our spoken conversation.` }]
-        },
-        {
-          role: 'model',
-          parts: [{ text: `Understood! I'm ready to coach and converse with you warmly.` }]
+      // Build strictly alternating multi-turn contents for Gemini API:
+      // (Gemini requires: user -> model -> user -> model -> user)
+      const pastMessages: ChatMessage[] = [];
+      for (const m of params.history) {
+        pastMessages.push(m);
+      }
+
+      // If the last message in history is the current userMessage, drop it from past so it isn't duplicated
+      if (pastMessages.length > 0) {
+        const last = pastMessages[pastMessages.length - 1];
+        if (last.sender === 'user' && last.text.trim() === params.userMessage.trim()) {
+          pastMessages.pop();
         }
-      ];
+      }
 
-      // Append recent history (up to last 6 turns)
-      const recentHistory = params.history.slice(-6);
-      recentHistory.forEach((msg) => {
+      // Slice to recent history (up to last 8 turns)
+      const recentHistory = pastMessages.slice(-8);
+      const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+
+      for (const msg of recentHistory) {
+        const role = msg.sender === 'user' ? 'user' : 'model';
+        const lastRole = contents.length > 0 ? contents[contents.length - 1].role : null;
+
+        if (contents.length === 0 && role === 'model') {
+          // If conversation history begins with an AI message (the scenario starter),
+          // prepend a synthetic user start to satisfy Gemini's first-turn user requirement
+          contents.push({
+            role: 'user',
+            parts: [{ text: `Hello! I am ready to practice ${params.mode} speaking on "${params.scenarioTitle}".` }]
+          });
+          contents.push({
+            role: 'model',
+            parts: [{ text: msg.text }]
+          });
+        } else if (lastRole === role) {
+          // If two consecutive messages have the same role, combine them instead of causing Gemini 400
+          contents[contents.length - 1].parts[0].text += ` ${msg.text}`;
+        } else {
+          contents.push({
+            role,
+            parts: [{ text: msg.text }]
+          });
+        }
+      }
+
+      // Append current user message as the final 'user' turn
+      if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+        contents[contents.length - 1].parts[0].text = params.userMessage;
+      } else {
         contents.push({
-          role: msg.sender === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.text }]
+          role: 'user',
+          parts: [{ text: params.userMessage }]
         });
-      });
-
-      // Append current user message
-      contents.push({
-        role: 'user',
-        parts: [{ text: params.userMessage }]
-      });
+      }
 
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
           contents,
           generationConfig: {
             temperature: 0.7,
@@ -147,64 +177,225 @@ RULES:
       });
 
       if (!response.ok) {
-        console.warn('Gemini request failed, falling back to offline coach:', response.status);
-        return {
-          replyText: this.getOfflineFallbackReply(params.userMessage, params.mode),
-          source: 'offline_heuristic'
-        };
+        const errBody = await response.text().catch(() => '');
+        console.warn('Gemini request failed (status ' + response.status + '):', errBody);
+        return this.getOfflineFallbackReply(params.userMessage, params.mode, params.scenarioTitle, params.history);
       }
 
       const data = await response.json();
       const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
       if (!generatedText) {
-        return {
-          replyText: this.getOfflineFallbackReply(params.userMessage, params.mode),
-          source: 'offline_heuristic'
-        };
+        return this.getOfflineFallbackReply(params.userMessage, params.mode, params.scenarioTitle, params.history);
+      }
+
+      // Extract coaching tip if present in parentheses
+      let coachingTip: string | undefined;
+      const tipMatch = generatedText.match(/\((?:Tip|Note|Native tip|A natural way[^)]+):?\s*([^)]+)\)/i);
+      if (tipMatch) {
+        coachingTip = tipMatch[1].trim();
       }
 
       return {
         replyText: generatedText,
+        coachingTip,
         source: 'gemini'
       };
     } catch (err) {
       console.warn('Error contacting Gemini API:', err);
-      return {
-        replyText: this.getOfflineFallbackReply(params.userMessage, params.mode),
-        source: 'offline_heuristic'
-      };
+      return this.getOfflineFallbackReply(params.userMessage, params.mode, params.scenarioTitle, params.history);
     }
   }
 
   /**
-   * Offline heuristic fallback if Gemini is not configured or network drops.
+   * High-intelligence contextual fallback engine if Gemini API key is not configured or offline.
+   * Understands greetings, identity, direct questions, affirmations, hesitations, and scenario topics.
    */
-  private static getOfflineFallbackReply(
+  public static getOfflineFallbackReply(
     userText: string,
-    mode: 'practice' | 'interview' | 'workplace' | 'free'
-  ): string {
-    const text = userText.toLowerCase();
+    mode: 'practice' | 'interview' | 'workplace' | 'free' = 'practice',
+    scenarioTitle: string = 'General Conversation',
+    history: ChatMessage[] = []
+  ): CoachResponse {
+    const raw = userText.trim();
+    const text = raw.toLowerCase();
 
-    if (mode === 'interview') {
-      if (text.includes('experience') || text.includes('project') || text.includes('work')) {
-        return "That sounds like a impactful challenge. How did you measure success or handle unexpected setbacks along the way?";
+    // 1. Check for common grammar slips to provide constructive coaching tip
+    let suggestedPhrasing: string | undefined;
+    if (/\b(i am agree|i'm agree)\b/i.test(text)) {
+      suggestedPhrasing = 'Native tip: Say "I agree" rather than "I am agree".';
+    } else if (/\b(people is|everyone are)\b/i.test(text)) {
+      suggestedPhrasing = 'Native tip: "People" takes "are", while "Everyone" takes "is".';
+    } else if (/\b(discuss about)\b/i.test(text)) {
+      suggestedPhrasing = 'Native tip: Say "discuss this" without the preposition "about".';
+    } else if (/\b(have a doubt)\b/i.test(text)) {
+      suggestedPhrasing = 'Native tip: In business contexts, "I have a question" sounds clearer.';
+    } else if (/\b(more better|more faster)\b/i.test(text)) {
+      suggestedPhrasing = 'Native tip: Avoid double comparatives; say "much better" or "faster".';
+    }
+
+    // 2. Greetings & How are you
+    if (/\b(how\s+are\s+you|how're\s+you|how\s+is\s+it\s+going|how\s+do\s+you\s+do|what'?s\s+up)\b/i.test(text)) {
+      return {
+        replyText: "I'm doing well, thank you for asking! I'm excited to practice English with you today. How is your day going so far, and are you feeling ready to dive into our conversation?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    if (/^(hi|hello|hey|good\s+(morning|afternoon|evening)|greetings)[\s!.,?]*$/i.test(text) ||
+        (/\b(hi|hello|hey)\b/i.test(text) && text.split(/\s+/).length <= 4)) {
+      return {
+        replyText: mode === 'interview'
+          ? "Hello! It's a pleasure to meet you. Thank you for joining today's session. Are you ready to begin with our interview discussion?"
+          : "Hello! It's great to connect with you. I'm SpeakFlow AI, your conversation partner. What would you like to talk about today?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 3. User asks about AI identity or name
+    if (/\b(who\s+are\s+you|what\s+are\s+you|what('?s|\s+is)\s+your\s+name)\b/i.test(text)) {
+      return {
+        replyText: "I am SpeakFlow AI, your personal English speaking coach! I'm here to converse with you, help you build spontaneous speaking confidence, and polish your grammar and vocabulary. What communication skill are you working on right now?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    if (/\b(do\s+you\s+know\s+my\s+name|what('?s|\s+is)\s+my\s+name)\b/i.test(text)) {
+      return {
+        replyText: "I don't have your name yet! What should I call you? Feel free to introduce yourself so we can make this personal.",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 4. User introduces their name
+    const nameMatch = text.match(/\b(?:my\s+name\s+is|i\s+am|call\s+me)\s+([a-zA-Z]+)\b/i);
+    if (nameMatch && nameMatch[1] && !['a', 'the', 'ready', 'fine', 'good', 'speaking'].includes(nameMatch[1].toLowerCase())) {
+      const name = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
+      return {
+        replyText: `It's wonderful to meet you, ${name}! Welcome to SpeakFlow. I'm ready whenever you are. What topic or scenario would you like to practice together?`,
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 5. User asks for help or capabilities
+    if (/\b(what\s+can\s+you\s+do|how\s+does\s+this\s+work|help\s+me|how\s+can\s+you\s+help)\b/i.test(text)) {
+      return {
+        replyText: "I can practice spoken dialogues with you in real time! You can speak using your microphone or type your responses. I will listen, respond naturally like a conversation partner, and help you refine your phrasing. What would you like to discuss first?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 6. Affirmations / Readiness (yes, sure, ok, ready)
+    if (/^(yes|yeah|yep|sure|ok|okay|absolutely|definitely|i\s+am\s+ready|ready|let'?s\s+do\s+it|let'?s\s+go)[\s!.,?]*$/i.test(text)) {
+      if (mode === 'interview') {
+        return {
+          replyText: "Excellent! Let's jump right in. Could you walk me through a challenging project or obstacle you handled recently, and what your specific contribution was?",
+          suggestedPhrasing,
+          source: 'offline_heuristic'
+        };
       }
-      return "Thank you for sharing that. Could you tell me more about how you collaborated with your teammates in that situation?";
+      if (mode === 'workplace') {
+        return {
+          replyText: "Great! Let's align on our team priorities. Looking ahead to the upcoming sprint, what is the most critical item we need to deliver first?",
+          suggestedPhrasing,
+          source: 'offline_heuristic'
+        };
+      }
+      return {
+        replyText: "Fantastic! To get started, tell me a little bit about what you've been working on or learning recently.",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 7. Hesitation / Uncertainty / Negative
+    if (/^(no|not\s+really|i\s+don'?t\s+know|i'?m\s+not\s+sure|maybe|nothing)[\s!.,?]*$/i.test(text)) {
+      return {
+        replyText: "No worries at all! We can keep things simple and easy. Tell me about a hobby, interest, or favorite movie you enjoyed recently.",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 8. Gratitude (thank you, thanks)
+    if (/\b(thank\s+you|thanks|appreciate\s+it|thank\s+u)\b/i.test(text)) {
+      return {
+        replyText: "You're very welcome! You are doing a wonderful job expressing your ideas spontaneously. Would you like to continue on this topic or try another question?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 9. Contextual Scenario & Topic Keywords
+    if (text.includes('database') || text.includes('migration') || text.includes('code') || text.includes('software') || text.includes('system') || text.includes('deploy') || text.includes('architecture')) {
+      return {
+        replyText: "Navigating technical complexity like that is a significant challenge! Could you elaborate on how you planned the deployment or architecture, and how your team ensured minimal downtime?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    if (text.includes('team') || text.includes('colleague') || text.includes('coworker') || text.includes('manager') || text.includes('client') || text.includes('stakeholder') || text.includes('collaborat')) {
+      return {
+        replyText: "Teamwork and cross-functional collaboration are crucial in those moments. How did you communicate with everyone to keep alignment, and how were disagreements handled?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    if (text.includes('obstacle') || text.includes('challenge') || text.includes('difficult') || text.includes('problem') || text.includes('issue') || text.includes('conflict')) {
+      return {
+        replyText: "Overcoming unexpected obstacles requires both resilience and strategic thinking. What was the turning point in solving that challenge, and what key lesson did you take away?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    if (text.includes('deadline') || text.includes('timeline') || text.includes('pressure') || text.includes('time') || text.includes('priority')) {
+      return {
+        replyText: "Delivering high-quality work under strict time pressure is always demanding. How did you prioritize what to tackle first, and how did you keep your composure?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    if (text.includes('learned') || text.includes('mistake') || text.includes('improve') || text.includes('failure')) {
+      return {
+        replyText: "Reflecting honestly on learning moments shows genuine maturity and growth mindset. Looking back today, what would you do differently if you faced that exact situation again?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
+    }
+
+    // 10. Intelligent open-ended conversational follow-up based on mode
+    if (mode === 'interview') {
+      return {
+        replyText: "That gives me valuable insight into your background. Could you share a specific quantifiable result or milestone that highlights the success of your approach?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
     }
 
     if (mode === 'workplace') {
-      if (text.includes('timeline') || text.includes('deadline') || text.includes('priority')) {
-        return "I appreciate you flagging the timeline. What do you see as the top priority to deliver first?";
-      }
-      return "That aligns well with our team roadmap. What resources or support do you need from the team to execute this smoothly?";
+      return {
+        replyText: "That makes strategic sense. What support or coordination do you need from other team members to execute this seamlessly?",
+        suggestedPhrasing,
+        source: 'offline_heuristic'
+      };
     }
 
-    // Casual / Practice
-    if (text.includes('yes') || text.includes('agree') || text.includes('sure')) {
-      return "Glad to hear that! What part of your day are you most looking forward to tackling next?";
-    }
-    return "That's a great perspective! How do you usually approach that in your day-to-day routine?";
+    // Free / Practice
+    return {
+      replyText: "That is a very thoughtful perspective! What inspired that approach, and how does it fit into your everyday goals?",
+      suggestedPhrasing,
+      source: 'offline_heuristic'
+    };
   }
 
   /**
