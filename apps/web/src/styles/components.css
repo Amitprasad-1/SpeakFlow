@@ -588,13 +588,52 @@
   }
   .speaking-topic-actions {
     width: 100%;
+    gap: 8px;
   }
   .speaking-topic-actions button {
     flex: 1;
     justify-content: center;
     font-size: 0.75rem !important;
     padding: 8px 10px !important;
+    white-space: nowrap !important;
   }
+  .speaking-btn-desktop {
+    display: none !important;
+  }
+  .speaking-btn-mobile {
+    display: inline !important;
+  }
+}
+
+/* Category Pills Horizontal Row without Overlap */
+.category-pills-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.category-pills-row::-webkit-scrollbar {
+  display: none;
+}
+
+.category-pill-btn {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+
+.speaking-btn-desktop {
+  display: inline;
+}
+
+.speaking-btn-mobile {
+  display: none;
 }
 
 /* --------------------------------------------------------------------------

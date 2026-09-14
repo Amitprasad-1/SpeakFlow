@@ -260,6 +260,7 @@ export const EssayWritingTab: React.FC = () => {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     padding: '7px 14px',
                     borderRadius: 'var(--radius-pill)',
@@ -270,18 +271,20 @@ export const EssayWritingTab: React.FC = () => {
                     fontWeight: 700,
                     cursor: isGeneratingAiTopics ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease',
-                    opacity: isGeneratingAiTopics ? 0.7 : 1
+                    opacity: isGeneratingAiTopics ? 0.7 : 1,
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   {isGeneratingAiTopics ? (
                     <>
                       <RefreshCw size={13} className="spin-animation" />
-                      <span>Generating AI Prompts...</span>
+                      <span>Generating...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles size={13} />
-                      <span>✨ Generate AI Prompts</span>
+                      <span className="speaking-btn-desktop">✨ Generate AI Prompts</span>
+                      <span className="speaking-btn-mobile">AI Prompts</span>
                     </>
                   )}
                 </button>
@@ -289,9 +292,11 @@ export const EssayWritingTab: React.FC = () => {
                 <button
                   onClick={handleRandomTopic}
                   className="tap-interactive"
+                  title="Pick a random essay prompt"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     padding: '7px 14px',
                     borderRadius: 'var(--radius-pill)',
@@ -300,11 +305,13 @@ export const EssayWritingTab: React.FC = () => {
                     color: 'var(--color-text-secondary)',
                     fontSize: '0.78125rem',
                     fontWeight: 700,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   <Shuffle size={13} />
-                  <span>Random Topic</span>
+                  <span className="speaking-btn-desktop">Random Topic</span>
+                  <span className="speaking-btn-mobile">Random</span>
                 </button>
               </div>
             </div>
@@ -355,13 +362,16 @@ export const EssayWritingTab: React.FC = () => {
 
               {/* Category Pills Selector */}
               <div
+                className="category-pills-row"
                 style={{
                   display: 'flex',
-                  gap: '6px',
+                  gap: '8px',
                   overflowX: 'auto',
                   paddingBottom: '8px',
                   marginBottom: '10px',
-                  scrollbarWidth: 'thin'
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
                 }}
               >
                 {WRITING_CATEGORIES.map(cat => {
@@ -374,8 +384,9 @@ export const EssayWritingTab: React.FC = () => {
                     <button
                       key={cat}
                       onClick={() => setSelectedCategory(cat)}
-                      className="tap-interactive"
+                      className="category-pill-btn tap-interactive"
                       style={{
+                        flexShrink: 0,
                         padding: '6px 12px',
                         borderRadius: 'var(--radius-pill)',
                         border: isActive ? '1px solid #10b981' : '1px solid var(--color-border)',

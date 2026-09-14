@@ -604,6 +604,7 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     padding: '7px 14px',
                     borderRadius: 'var(--radius-pill)',
@@ -614,18 +615,20 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     fontWeight: 700,
                     cursor: isGeneratingAiTopics ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease',
-                    opacity: isGeneratingAiTopics ? 0.7 : 1
+                    opacity: isGeneratingAiTopics ? 0.7 : 1,
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   {isGeneratingAiTopics ? (
                     <>
                       <RefreshCw size={13} className="spin-animation" />
-                      <span>Generating AI Topics...</span>
+                      <span>Generating...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles size={13} />
-                      <span>✨ Generate AI Topics</span>
+                      <span className="speaking-btn-desktop">✨ Generate AI Topics</span>
+                      <span className="speaking-btn-mobile">AI Topics</span>
                     </>
                   )}
                 </button>
@@ -633,9 +636,11 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                 <button
                   onClick={handleRandomTopic}
                   className="tap-interactive"
+                  title="Pick a random topic"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     padding: '7px 14px',
                     borderRadius: 'var(--radius-pill)',
@@ -644,11 +649,13 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     color: 'var(--color-text-secondary)',
                     fontSize: '0.78125rem',
                     fontWeight: 700,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   <Shuffle size={13} />
-                  <span>Surprise Me / Random</span>
+                  <span className="speaking-btn-desktop">Surprise Me / Random</span>
+                  <span className="speaking-btn-mobile">Random</span>
                 </button>
               </div>
             </div>
@@ -673,16 +680,18 @@ export const ImpromptuSpeakingTab: React.FC = () => {
               </div>
 
               {/* Guide questions */}
-              <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Brainstorming Angles:
                 </span>
-                {selectedTopic.guideQuestions.map((q, idx) => (
-                  <div key={idx} style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                    <span style={{ color: 'var(--color-primary)', fontWeight: 800, flexShrink: 0 }}>•</span>
-                    <span>{q}</span>
-                  </div>
-                ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(255, 255, 255, 0.02)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--color-border-subtle)' }}>
+                  {selectedTopic.guideQuestions.map((q, idx) => (
+                    <div key={idx} style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.45, wordBreak: 'break-word' }}>
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 800, flexShrink: 0 }}>•</span>
+                      <span>{q}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -704,13 +713,16 @@ export const ImpromptuSpeakingTab: React.FC = () => {
 
               {/* Category Pills Selector */}
               <div
+                className="category-pills-row"
                 style={{
                   display: 'flex',
-                  gap: '6px',
+                  gap: '8px',
                   overflowX: 'auto',
                   paddingBottom: '8px',
                   marginBottom: '10px',
-                  scrollbarWidth: 'thin'
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
                 }}
               >
                 {SPEAKING_CATEGORIES.map(cat => {
@@ -723,8 +735,9 @@ export const ImpromptuSpeakingTab: React.FC = () => {
                     <button
                       key={cat}
                       onClick={() => setSelectedCategory(cat)}
-                      className="tap-interactive"
+                      className="category-pill-btn tap-interactive"
                       style={{
+                        flexShrink: 0,
                         padding: '6px 12px',
                         borderRadius: 'var(--radius-pill)',
                         border: isActive ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
