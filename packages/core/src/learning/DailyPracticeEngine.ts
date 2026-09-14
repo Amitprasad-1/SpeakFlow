@@ -420,8 +420,8 @@ export class DailyPracticeEngine {
     const streak = { ...profile.streak };
 
     if (streak.lastPracticeDate !== todayStr) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      const sessionDate = new Date(`${todayStr}T00:00:00Z`);
+      const yesterday = new Date(sessionDate.getTime() - 86400000);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
 
       if (streak.lastPracticeDate === yesterdayStr) {
