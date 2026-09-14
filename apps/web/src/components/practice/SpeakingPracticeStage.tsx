@@ -24,6 +24,15 @@ export const SpeakingPracticeStage: React.FC<SpeakingPracticeStageProps> = ({
 
   const activePrompt = prompts[currentIndex] || prompts[0];
 
+  const finishSpeakingTurn = () => {
+    speechProvider.stopRealtimeRecognition();
+    setVoiceState('processing');
+    setTimeout(() => {
+      setVoiceState('result');
+      setHasCompletedAttempt(true);
+    }, 1000);
+  };
+
   const handleToggleVoice = () => {
     if (voiceState === 'ready') {
       setVoiceState('listening');
@@ -31,16 +40,21 @@ export const SpeakingPracticeStage: React.FC<SpeakingPracticeStageProps> = ({
       setTranscript('');
 
       speechProvider.startRealtimeRecognition({
+        autoEndOnSilence: true,
+        silenceThresholdMs: 2000,
+        noSpeechTimeoutMs: 10000,
         onTranscriptUpdate: (text) => setTranscript(text),
+        onSilenceDetected: () => {
+          finishSpeakingTurn();
+        },
+        onNoSpeechTimeout: () => {
+          setVoiceState('ready');
+          setDuration(0);
+        },
         onError: () => {}
       });
     } else if (voiceState === 'listening') {
-      speechProvider.stopRealtimeRecognition();
-      setVoiceState('processing');
-      setTimeout(() => {
-        setVoiceState('result');
-        setHasCompletedAttempt(true);
-      }, 1200);
+      finishSpeakingTurn();
     } else {
       setVoiceState('ready');
       setDuration(0);

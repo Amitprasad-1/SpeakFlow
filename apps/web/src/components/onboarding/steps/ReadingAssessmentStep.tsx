@@ -66,8 +66,17 @@ export const ReadingAssessmentStep: React.FC<ReadingAssessmentStepProps> = ({
     try {
       await speechProvider.startRecording();
       speechProvider.startRealtimeRecognition({
+        autoEndOnSilence: true,
+        silenceThresholdMs: 2400,
+        noSpeechTimeoutMs: 14000,
         onTranscriptUpdate: (text) => {
           setTranscript(text);
+        },
+        onSilenceDetected: (finalText) => {
+          handleFinishReading(finalText);
+        },
+        onNoSpeechTimeout: () => {
+          setIsReading(false);
         }
       });
     } catch (e) {
@@ -75,7 +84,7 @@ export const ReadingAssessmentStep: React.FC<ReadingAssessmentStepProps> = ({
     }
   };
 
-  const handleFinishReading = async () => {
+  const handleFinishReading = async (forcedText?: string) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -86,9 +95,10 @@ export const ReadingAssessmentStep: React.FC<ReadingAssessmentStepProps> = ({
     await speechProvider.stopRecording();
 
     const elapsedMs = Math.max(3000, Date.now() - startTimeRef.current);
+    const spokenText = forcedText || transcript;
 
     // Evaluate using core engine
-    const evaluation = AssessmentEngine.evaluateReadingAttempt(passage, transcript, elapsedMs);
+    const evaluation = AssessmentEngine.evaluateReadingAttempt(passage, spokenText, elapsedMs);
     setActiveResult(evaluation);
     setHasCompleted(true);
   };
@@ -189,7 +199,7 @@ export const ReadingAssessmentStep: React.FC<ReadingAssessmentStepProps> = ({
               <Button
                 variant="danger"
                 size="md"
-                onClick={handleFinishReading}
+                onClick={() => handleFinishReading()}
                 icon={<Square size={16} fill="currentColor" />}
                 id="btn-finish-reading"
               >

@@ -69,6 +69,15 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [isKeySaved, setIsKeySaved] = useState(false);
   const [hideConnectBanner, setHideConnectBanner] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const [isHandsFreeMode, setIsHandsFreeMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('speakflow_hands_free_mode');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  const isHandsFreeModeRef = useRef(isHandsFreeMode);
+  isHandsFreeModeRef.current = isHandsFreeMode;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const silenceTimerRef = useRef<any>(null);
@@ -178,6 +187,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       setIsSpeakingAi(true);
       speechProvider.synthesizeSpeech(aiMsg.text, { rate: 1.0 }).finally(() => {
         setIsSpeakingAi(false);
+        // Hands-Free Conversational Loop: automatically open microphone for user response!
+        if (isHandsFreeModeRef.current) {
+          setTimeout(() => {
+            if (!isSubmittingTurnRef.current && isHandsFreeModeRef.current) {
+              startListeningVoice();
+            }
+          }, 350);
+        }
       });
 
       // 5. Trigger review report when turn threshold is reached
@@ -196,6 +213,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       setIsSpeakingAi(true);
       speechProvider.synthesizeSpeech(replyMessage.text, { rate: 1.0 }).finally(() => {
         setIsSpeakingAi(false);
+        // Hands-Free Conversational Loop: automatically open microphone for user response in fallback mode!
+        if (isHandsFreeModeRef.current) {
+          setTimeout(() => {
+            if (!isSubmittingTurnRef.current && isHandsFreeModeRef.current) {
+              startListeningVoice();
+            }
+          }, 350);
+        }
       });
     }
   };
@@ -218,78 +243,93 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     }
   };
 
-  const handleToggleVoice = () => {
-    if (voiceState === 'ready') {
-      isSubmittingTurnRef.current = false;
-      latestTranscriptRef.current = '';
-      setTranscript('');
-      setHasDetectedSpeech(false);
-      setRecordedDuration(0);
-      setVoiceState('listening');
+  const startListeningVoice = () => {
+    if (isSubmittingTurnRef.current || isSpeakingAi) return;
+    isSubmittingTurnRef.current = false;
+    latestTranscriptRef.current = '';
+    setTranscript('');
+    setHasDetectedSpeech(false);
+    setRecordedDuration(0);
+    setVoiceState('listening');
 
-      clearVoiceTimers();
-      durationIntervalRef.current = setInterval(() => {
-        setRecordedDuration((prev) => prev + 1);
-      }, 1000);
+    clearVoiceTimers();
+    durationIntervalRef.current = setInterval(() => {
+      setRecordedDuration((prev) => prev + 1);
+    }, 1000);
 
-      speechProvider.startRealtimeRecognition({
-        onStart: () => {
-          // Started listening
-        },
-        onTranscriptUpdate: (fullText) => {
-          if (isSubmittingTurnRef.current) return;
-          latestTranscriptRef.current = fullText;
-          setTranscript(fullText);
+    speechProvider.startRealtimeRecognition({
+      autoEndOnSilence: true,
+      silenceThresholdMs: 1500,
+      noSpeechTimeoutMs: 8000,
+      onStart: () => {},
+      onTranscriptUpdate: (fullText) => {
+        if (isSubmittingTurnRef.current) return;
+        latestTranscriptRef.current = fullText;
+        setTranscript(fullText);
 
-          const trimmed = fullText.trim();
-          if (trimmed.length > 0) {
-            setHasDetectedSpeech(true);
-            // Reset silence timer on every new token
-            if (silenceTimerRef.current) {
-              clearTimeout(silenceTimerRef.current);
-            }
-            // Auto turn-off when user finishes sentence / stops speaking (1.6s natural pause)
-            silenceTimerRef.current = setTimeout(() => {
-              stopAndSubmitVoiceTurn();
-            }, 1600);
+        const trimmed = fullText.trim();
+        if (trimmed.length > 0) {
+          setHasDetectedSpeech(true);
+          // Redundant silence backup timer for edge-case browser speech engines
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
           }
-        },
-        onSpeechEnd: () => {
-          // Native browser silence detected
-          if (!isSubmittingTurnRef.current && latestTranscriptRef.current.trim().length > 0) {
-            if (silenceTimerRef.current) {
-              clearTimeout(silenceTimerRef.current);
-            }
-            silenceTimerRef.current = setTimeout(() => {
-              stopAndSubmitVoiceTurn();
-            }, 800);
+          silenceTimerRef.current = setTimeout(() => {
+            stopAndSubmitVoiceTurn();
+          }, 1600);
+        }
+      },
+      onSilenceDetected: (finalText) => {
+        if (!isSubmittingTurnRef.current && finalText.trim().length > 0) {
+          stopAndSubmitVoiceTurn(finalText);
+        }
+      },
+      onNoSpeechTimeout: () => {
+        // User turned on mic but did not speak within 8s - gracefully return to ready state
+        if (!isSubmittingTurnRef.current) {
+          setVoiceState('ready');
+          clearVoiceTimers();
+          setRecordedDuration(0);
+          setHasDetectedSpeech(false);
+        }
+      },
+      onSpeechEnd: () => {
+        if (!isSubmittingTurnRef.current && latestTranscriptRef.current.trim().length > 0) {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
           }
-        },
-        onEnd: () => {
-          // Browser ended recognition
-          if (!isSubmittingTurnRef.current) {
-            if (latestTranscriptRef.current.trim().length > 0) {
-              stopAndSubmitVoiceTurn();
-            } else {
-              setVoiceState('ready');
-              clearVoiceTimers();
-              setRecordedDuration(0);
-              setHasDetectedSpeech(false);
-            }
-          }
-        },
-        onError: (err) => {
-          console.warn('Realtime speech error:', err);
-          if (!isSubmittingTurnRef.current && !latestTranscriptRef.current.trim()) {
+          silenceTimerRef.current = setTimeout(() => {
+            stopAndSubmitVoiceTurn();
+          }, 700);
+        }
+      },
+      onEnd: () => {
+        if (!isSubmittingTurnRef.current) {
+          if (latestTranscriptRef.current.trim().length > 0) {
+            stopAndSubmitVoiceTurn();
+          } else {
             setVoiceState('ready');
             clearVoiceTimers();
             setRecordedDuration(0);
             setHasDetectedSpeech(false);
           }
         }
-      });
+      },
+      onError: (err) => {
+        if (!isSubmittingTurnRef.current && !latestTranscriptRef.current.trim()) {
+          setVoiceState('ready');
+          clearVoiceTimers();
+          setRecordedDuration(0);
+          setHasDetectedSpeech(false);
+        }
+      }
+    });
+  };
+
+  const handleToggleVoice = () => {
+    if (voiceState === 'ready') {
+      startListeningVoice();
     } else if (voiceState === 'listening') {
-      // User clicked mic button manually to finish right away
       stopAndSubmitVoiceTurn();
     } else {
       setVoiceState('ready');
@@ -796,26 +836,52 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               )}
             </div>
 
-            {/* Hands-Free Auto Turn-Off Micro Badge */}
-            {voiceState === 'listening' && (
-              <div
+            {/* Hands-Free Auto-Mic Mode Toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !isHandsFreeMode;
+                  setIsHandsFreeMode(next);
+                  isHandsFreeModeRef.current = next;
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('speakflow_hands_free_mode', String(next));
+                  }
+                }}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  fontSize: '0.6875rem',
-                  color: '#34d399',
-                  background: 'rgba(16, 185, 129, 0.1)',
                   padding: '3px 10px',
                   borderRadius: '9999px',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  animation: 'bubblePopIn 0.2s ease forwards'
+                  border: `1px solid ${isHandsFreeMode ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.15)'}`,
+                  background: isHandsFreeMode ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                  color: isHandsFreeMode ? '#34d399' : 'var(--color-text-secondary)',
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
                 }}
+                title={isHandsFreeMode ? 'Hands-Free Auto-Mic is ON: Mic starts when AI stops speaking, and auto-submits when you pause.' : 'Hands-Free Auto-Mic is OFF: Click mic manually.'}
               >
-                <Zap size={11} />
-                <span>Hands-free: stops & sends when you pause</span>
-              </div>
-            )}
+                <Zap size={11} fill={isHandsFreeMode ? 'currentColor' : 'none'} />
+                <span>Auto-Mic Loop: {isHandsFreeMode ? 'ON' : 'OFF'}</span>
+              </button>
+
+              {voiceState === 'listening' && (
+                <span
+                  style={{
+                    fontSize: '0.6875rem',
+                    color: '#34d399',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <span>• Auto-sends on 1.5s pause</span>
+                </span>
+              )}
+            </div>
           </div>
 
           <button

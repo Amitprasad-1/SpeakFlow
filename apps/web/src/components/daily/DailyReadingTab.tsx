@@ -22,7 +22,7 @@ import {
   Video
 } from 'lucide-react';
 import { ReadingVideoRecorder } from './ReadingVideoRecorder';
-import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
+import { speakText, stopSpeaking, BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
 
 export interface DailyReadingTabProps {
   currentDateString?: string;
@@ -73,12 +73,16 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
   const [textSize, setTextSize] = useState<'normal' | 'large'>('normal');
   const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [liveSpokenTranscript, setLiveSpokenTranscript] = useState<string>('');
+  const [spokenWordsCount, setSpokenWordsCount] = useState<number>(0);
   const [isVideoRecorderOpen, setIsVideoRecorderOpen] = useState<boolean>(false);
   const [isCameraRecording, setIsCameraRecording] = useState<boolean>(false);
   const [recordingTrigger, setRecordingTrigger] = useState<number>(0);
   const [readingSeconds, setReadingSeconds] = useState<number>(0);
   const [hasCompleted, setHasCompleted] = useState<boolean>(false);
   const [estimatedWpm, setEstimatedWpm] = useState<number | null>(null);
+
+  const speechProvider = useMemo(() => new BrowserSpeechProvider(), []);
 
   // Refs for timers and smooth scrolling
   const pacerTimerRef = useRef<any>(null);
@@ -107,8 +111,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       window.speechSynthesis?.cancel();
       if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
       if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+      speechProvider.dispose();
     };
-  }, []);
+  }, [speechProvider]);
 
   // Smooth scroll active sentence into view
   const scrollToSentence = (index: number) => {
@@ -322,16 +327,27 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
   };
 
-  // Microphone practice
+  // Microphone practice with real speech recognition and silence auto-end
+  const stopMicPractice = () => {
+    setIsRecording(false);
+    speechProvider.stopRealtimeRecognition();
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+
+    const durationSec = Math.max(1, readingSeconds);
+    const mins = durationSec / 60;
+    // Calculate actual reading speed from detected words or passage word count
+    const words = spokenWordsCount > 5 ? spokenWordsCount : passage.wordCount;
+    const wpm = Math.min(350, Math.max(50, Math.round(words / mins)));
+    setEstimatedWpm(wpm);
+    setHasCompleted(true);
+  };
+
   const toggleRecording = () => {
     if (isRecording) {
-      setIsRecording(false);
-      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
-
-      const mins = Math.max(0.1, readingSeconds / 60);
-      const wpm = Math.round(passage.wordCount / mins);
-      setEstimatedWpm(wpm);
-      setHasCompleted(true);
+      stopMicPractice();
       return;
     }
 
@@ -343,21 +359,47 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     setHasCompleted(false);
     setEstimatedWpm(null);
     setReadingSeconds(0);
+    setSpokenWordsCount(0);
+    setLiveSpokenTranscript('');
     setIsRecording(true);
 
     recordTimerRef.current = setInterval(() => {
       setReadingSeconds(prev => prev + 1);
     }, 1000);
+
+    // Start real continuous microphone speech recognition
+    speechProvider.startRealtimeRecognition({
+      autoEndOnSilence: true,
+      silenceThresholdMs: 2800, // 2.8s natural pause threshold for passage reading
+      noSpeechTimeoutMs: 15000,
+      onTranscriptUpdate: (text) => {
+        setLiveSpokenTranscript(text);
+        const count = text.trim().split(/\s+/).filter(Boolean).length;
+        setSpokenWordsCount(count);
+      },
+      onSilenceDetected: () => {
+        stopMicPractice();
+      },
+      onNoSpeechTimeout: () => {
+        stopMicPractice();
+      },
+      onError: (err) => {
+        console.warn('Daily reading mic recognition notice:', err);
+      }
+    });
   };
 
   const resetPractice = () => {
     setIsAutomatedRunning(false);
     window.speechSynthesis?.cancel();
+    speechProvider.stopRealtimeRecognition();
     if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
     if (recordTimerRef.current) clearInterval(recordTimerRef.current);
 
     setSentenceProgress(0);
     setReadingSeconds(0);
+    setSpokenWordsCount(0);
+    setLiveSpokenTranscript('');
     setHasCompleted(false);
     setEstimatedWpm(null);
     setIsRecording(false);
@@ -748,6 +790,54 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             }}
           >
             Turn Camera Off
+          </button>
+        </div>
+      )}
+
+      {/* Live Voice Recording Pill (When user is practicing with microphone) */}
+      {isRecording && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '10px 18px',
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(37, 99, 235, 0.12) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+              <span style={{ position: 'absolute', width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #ef4444', opacity: 0.6, animation: 'pulse 1.2s infinite' }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#ef4444' }}>
+                  Microphone Recording Active ({readingSeconds}s)
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                  • {spokenWordsCount} words detected
+                </span>
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                {liveSpokenTranscript ? `"${liveSpokenTranscript}"` : 'Read aloud the passage below... stops automatically when you finish & pause!'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={stopMicPractice}
+            className="speakflow-btn btn-variant-danger"
+            style={{ padding: '4px 12px', fontSize: '0.75rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}
+          >
+            Finish Reading
           </button>
         </div>
       )}

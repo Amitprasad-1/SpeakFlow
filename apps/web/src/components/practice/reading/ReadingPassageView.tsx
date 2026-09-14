@@ -66,36 +66,45 @@ export const ReadingPassageView: React.FC<{
     await speechProvider.synthesizeSpeech(word, { rate: 0.85 });
   };
 
+  const spokenWordsRef = useRef<string[]>([]);
+  const startTimeRef = useRef<number>(0);
+
+  const stopReadingSession = async (finalWords?: string[]) => {
+    setIsRecording(false);
+    speechProvider.stopRealtimeRecognition();
+    visualizerRef.current?.startSimulation(false);
+    visualizerRef.current?.setAnalyser(null);
+
+    await speechProvider.stopRecording();
+    const duration = Math.max(2000, Date.now() - (startTimeRef.current || recordingStartTime || Date.now()));
+
+    const wordsToUse = finalWords || spokenWordsRef.current;
+    const spokenTranscript = wordsToUse.join(' ');
+    const evalResult = await speechProvider.evaluatePronunciation({
+      targetText: passage.passageText,
+      spokenTranscript: spokenTranscript.length > 5 ? spokenTranscript : passage.passageText,
+      durationMs: duration,
+      expectedWordCount: words.length,
+      targetPhonemes: passage.targetPhonemes
+    });
+
+    setFeedback(evalResult);
+  };
+
   // Toggle Live Reading Recording with Karaoke Word-by-Word Highlighting
   const handleToggleRecord = async () => {
     if (isRecording) {
-      // Stop recording
-      setIsRecording(false);
-      speechProvider.stopRealtimeRecognition();
-      visualizerRef.current?.startSimulation(false);
-      visualizerRef.current?.setAnalyser(null);
-
-      const result = await speechProvider.stopRecording();
-      const duration = Math.max(2000, Date.now() - recordingStartTime);
-
-      // Evaluate pronunciation with our Core PronunciationEvaluator
-      const spokenTranscript = spokenWordsList.join(' ');
-      const evalResult = await speechProvider.evaluatePronunciation({
-        targetText: passage.passageText,
-        spokenTranscript: spokenTranscript.length > 10 ? spokenTranscript : passage.passageText,
-        durationMs: duration,
-        expectedWordCount: words.length,
-        targetPhonemes: passage.targetPhonemes
-      });
-
-      setFeedback(evalResult);
+      await stopReadingSession();
     } else {
       // Start recording
       setFeedback(null);
       setCurrentWordIndex(0);
       setSpokenWordsList([]);
+      spokenWordsRef.current = [];
       setIsRecording(true);
-      setRecordingStartTime(Date.now());
+      const now = Date.now();
+      setRecordingStartTime(now);
+      startTimeRef.current = now;
 
       await speechProvider.startRecording();
       const analyser = speechProvider.getAnalyserNode();
@@ -105,13 +114,23 @@ export const ReadingPassageView: React.FC<{
         visualizerRef.current?.startSimulation(true);
       }
 
-      // Start continuous speech recognition for karaoke word tracking
+      // Start continuous speech recognition for karaoke word tracking with auto silence detection
       let recognizedIndex = 0;
       speechProvider.startRealtimeRecognition({
+        autoEndOnSilence: true,
+        silenceThresholdMs: 2500,
+        noSpeechTimeoutMs: 14000,
         onWordDetected: (word) => {
-          setSpokenWordsList((prev) => [...prev, word]);
+          setSpokenWordsList((prev) => {
+            const next = [...prev, word];
+            spokenWordsRef.current = next;
+            return next;
+          });
           recognizedIndex = Math.min(words.length - 1, recognizedIndex + 1);
           setCurrentWordIndex(recognizedIndex);
+        },
+        onSilenceDetected: () => {
+          stopReadingSession();
         },
         onError: (err) => {
           console.warn('Realtime speech error (fallback active):', err);

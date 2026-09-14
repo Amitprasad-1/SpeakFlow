@@ -98,8 +98,19 @@ export const SpeakingSimulatorView: React.FC<{
       }
 
       speechProvider.startRealtimeRecognition({
+        autoEndOnSilence: true,
+        silenceThresholdMs: 1600,
+        noSpeechTimeoutMs: 8000,
         onTranscriptUpdate: (transcript) => {
           setInputText(transcript);
+        },
+        onSilenceDetected: (finalText) => {
+          if (finalText.trim()) {
+            handleToggleRecord();
+          }
+        },
+        onNoSpeechTimeout: () => {
+          handleToggleRecord();
         },
         onError: (err) => {
           console.warn('Speaking speech recognition warning:', err);
@@ -145,6 +156,11 @@ export const SpeakingSimulatorView: React.FC<{
       setIsAiSpeaking(true);
       await speechProvider.synthesizeSpeech(reply.replyText, { rate: 0.95 });
       setIsAiSpeaking(false);
+
+      // Auto-start microphone after AI finishes speaking for continuous roleplay conversation!
+      setTimeout(() => {
+        handleToggleRecord();
+      }, 400);
     } catch (e) {
       console.warn('AI reply generation error:', e);
       setIsAiThinking(false);

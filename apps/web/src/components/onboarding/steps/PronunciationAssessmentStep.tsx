@@ -62,8 +62,17 @@ export const PronunciationAssessmentStep: React.FC<PronunciationAssessmentStepPr
     try {
       await speechProvider.startRecording();
       speechProvider.startRealtimeRecognition({
+        autoEndOnSilence: true,
+        silenceThresholdMs: 1200,
+        noSpeechTimeoutMs: 7000,
         onTranscriptUpdate: (text) => {
           setTranscript(text);
+        },
+        onSilenceDetected: (finalText) => {
+          handleStopRecording(finalText);
+        },
+        onNoSpeechTimeout: () => {
+          setVoiceState('ready');
         }
       });
     } catch (e) {
@@ -71,16 +80,17 @@ export const PronunciationAssessmentStep: React.FC<PronunciationAssessmentStepPr
     }
   };
 
-  const handleStopRecording = async () => {
+  const handleStopRecording = async (forcedText?: string) => {
     setVoiceState('processing');
     speechProvider.stopRealtimeRecognition();
     await speechProvider.stopRecording();
 
+    const evaluatedTranscript = (forcedText || transcript || `${currentPair.wordA} ${currentPair.wordB}`).trim();
     setTimeout(() => {
       const itemResult = AssessmentEngine.evaluatePronunciationAttempt(
         currentPair.soundGroup,
         [currentPair.wordA, currentPair.wordB],
-        transcript || `${currentPair.wordA} ${currentPair.wordB}`
+        evaluatedTranscript
       );
 
       setRecordedItems((prev) => [...prev.filter(i => i.soundGroup !== currentPair.soundGroup), itemResult]);

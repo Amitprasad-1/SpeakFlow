@@ -32,7 +32,7 @@ import {
   Calendar,
   BookOpen
 } from 'lucide-react';
-import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
+import { speakText, stopSpeaking, BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
 
 export interface DailyPhrasesTabProps {
   currentDateString?: string;
@@ -89,7 +89,7 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
   const [newCategory, setNewCategory] = useState<'punchy' | 'assertive' | 'requests' | 'daily'>('daily');
   const [isTranslating, setIsTranslating] = useState(false);
 
-  const recognitionRef = useRef<any>(null);
+  const speechProvider = useMemo(() => new BrowserSpeechProvider(), []);
 
   // Update daily phrases whenever date changes
   useEffect(() => {
@@ -105,13 +105,9 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {}
-      }
+      speechProvider.dispose();
     };
-  }, []);
+  }, [speechProvider]);
 
   // Dynamically fetch or generate a fresh set
   const handleFetchFreshPack = async () => {
@@ -186,65 +182,63 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
     });
   };
 
-  // Speech Practice
+  const evaluatePhrase = (phrase: HindiEnglishPhrase, spoken: string) => {
+    const target = phrase.english.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, '').trim();
+    const cleanSpoken = spoken.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, '').trim();
+
+    let score = 0;
+    if (cleanSpoken === target) {
+      score = 100;
+    } else {
+      const targetWords = target.split(/\s+/).filter(Boolean);
+      const spokenWords = cleanSpoken.split(/\s+/).filter(Boolean);
+      let matchCount = 0;
+      targetWords.forEach((w: string) => {
+        if (spokenWords.includes(w)) matchCount++;
+      });
+      score = Math.round((matchCount / Math.max(targetWords.length, 1)) * 100);
+    }
+
+    setPracticeResults((prev) => ({
+      ...prev,
+      [phrase.id]: { spoken, matchScore: Math.min(100, score) }
+    }));
+    setRecordingId(null);
+    speechProvider.stopRealtimeRecognition();
+  };
+
+  // Speech Practice with silence auto-end
   const handleTogglePractice = (phrase: HindiEnglishPhrase) => {
     if (recordingId === phrase.id) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-      setRecordingId(null);
+      const current = practiceResults[phrase.id]?.spoken || '';
+      evaluatePhrase(phrase, current);
       return;
     }
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please use Google Chrome, Edge, or Safari.');
-      return;
-    }
-
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     setPlayingId(null);
     setRecordingId(phrase.id);
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onresult = (event: any) => {
-      const spoken = event.results[0]?.[0]?.transcript || '';
-      const target = phrase.english.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, '').trim();
-      const cleanSpoken = spoken.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, '').trim();
-
-      let score = 0;
-      if (cleanSpoken === target) {
-        score = 100;
-      } else {
-        const targetWords = target.split(/\s+/);
-        const spokenWords = cleanSpoken.split(/\s+/);
-        let matchCount = 0;
-        targetWords.forEach((w: string) => {
-          if (spokenWords.includes(w)) matchCount++;
-        });
-        score = Math.round((matchCount / Math.max(targetWords.length, 1)) * 100);
+    speechProvider.startRealtimeRecognition({
+      autoEndOnSilence: true,
+      silenceThresholdMs: 1400,
+      noSpeechTimeoutMs: 7000,
+      onTranscriptUpdate: (text) => {
+        setPracticeResults((prev) => ({
+          ...prev,
+          [phrase.id]: { spoken: text, matchScore: 0 }
+        }));
+      },
+      onSilenceDetected: (finalText) => {
+        evaluatePhrase(phrase, finalText);
+      },
+      onNoSpeechTimeout: () => {
+        setRecordingId(null);
+      },
+      onError: () => {
+        setRecordingId(null);
       }
-
-      setPracticeResults((prev) => ({
-        ...prev,
-        [phrase.id]: { spoken, matchScore: Math.min(100, score) }
-      }));
-      setRecordingId(null);
-    };
-
-    recognition.onerror = () => setRecordingId(null);
-    recognition.onend = () => setRecordingId(null);
-
-    recognitionRef.current = recognition;
-    recognition.start();
+    });
   };
 
   // Toggle Favorite

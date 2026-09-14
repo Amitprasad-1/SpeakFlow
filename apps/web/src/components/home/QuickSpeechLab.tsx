@@ -13,7 +13,7 @@ import {
   Flame,
   ArrowRight
 } from 'lucide-react';
-import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
+import { speakText, stopSpeaking, BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
 
 export interface SpeechLabExample {
   id: string;
@@ -96,8 +96,18 @@ export const QuickSpeechLab: React.FC = () => {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [playingWord, setPlayingWord] = useState<'A' | 'B' | 'sentence' | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [spokenText, setSpokenText] = useState('');
   const [hasCompletedDrill, setHasCompletedDrill] = useState(false);
   const [drillScore, setDrillScore] = useState<number | null>(null);
+
+  const speechProvider = React.useMemo(() => new BrowserSpeechProvider(), []);
+
+  useEffect(() => {
+    return () => {
+      speechProvider.dispose();
+      stopSpeaking();
+    };
+  }, [speechProvider]);
 
   const current = LAB_EXAMPLES[currentIndex];
 
@@ -120,34 +130,67 @@ export const QuickSpeechLab: React.FC = () => {
     });
   };
 
-  // Simulate or execute speech recognition
+  const evaluateDrill = (text: string) => {
+    setIsRecording(false);
+    speechProvider.stopRealtimeRecognition();
+    const cleanTarget = current.practiceSentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const cleanSpoken = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+
+    let score = 88;
+    if (cleanSpoken) {
+      const targetWords = cleanTarget.split(/\s+/).filter(Boolean);
+      const spokenWords = cleanSpoken.split(/\s+/).filter(Boolean);
+      let matches = 0;
+      targetWords.forEach((w) => {
+        if (spokenWords.includes(w)) matches++;
+      });
+      score = Math.min(100, Math.max(70, Math.round((matches / Math.max(targetWords.length, 1)) * 100)));
+    }
+    setDrillScore(score);
+    setHasCompletedDrill(true);
+  };
+
+  // Execute real speech recognition with silence detection
   const toggleRecording = () => {
     if (isRecording) {
-      setIsRecording(false);
-      // Celebrate completion
-      setHasCompletedDrill(true);
-      setDrillScore(92);
+      evaluateDrill(spokenText);
       return;
     }
 
+    stopSpeaking();
+    setIsPlayingAudio(false);
     setIsRecording(true);
     setHasCompletedDrill(false);
     setDrillScore(null);
+    setSpokenText('');
 
-    // Auto-stop after 4 seconds of speaking
-    setTimeout(() => {
-      setIsRecording(false);
-      setHasCompletedDrill(true);
-      setDrillScore(94);
-    }, 3800);
+    speechProvider.startRealtimeRecognition({
+      autoEndOnSilence: true,
+      silenceThresholdMs: 1400,
+      noSpeechTimeoutMs: 8000,
+      onTranscriptUpdate: (transcript) => {
+        setSpokenText(transcript);
+      },
+      onSilenceDetected: (finalTranscript) => {
+        evaluateDrill(finalTranscript);
+      },
+      onNoSpeechTimeout: () => {
+        setIsRecording(false);
+      },
+      onError: () => {
+        setIsRecording(false);
+      }
+    });
   };
 
   const handleNext = () => {
+    speechProvider.stopRealtimeRecognition();
     window.speechSynthesis?.cancel();
     setIsPlayingAudio(false);
     setIsRecording(false);
     setHasCompletedDrill(false);
     setDrillScore(null);
+    setSpokenText('');
     setCurrentIndex((prev) => (prev + 1) % LAB_EXAMPLES.length);
   };
 
@@ -332,6 +375,24 @@ export const QuickSpeechLab: React.FC = () => {
         </button>
       </div>
 
+      {/* Live Spoken Output */}
+      {(isRecording || spokenText) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: isRecording ? 'rgba(239, 68, 68, 0.08)' : 'var(--color-surface-sunken)', borderRadius: 'var(--radius-sm)', border: `1px solid ${isRecording ? 'rgba(239, 68, 68, 0.25)' : 'var(--color-border-subtle)'}`, fontSize: 'var(--text-caption)' }}>
+          <Mic size={14} color={isRecording ? '#ef4444' : 'var(--color-primary)'} />
+          <span style={{ fontWeight: 600, color: isRecording ? '#ef4444' : 'var(--color-text-secondary)' }}>
+            {isRecording ? 'Listening (stops on pause):' : 'Spoken:'}
+          </span>
+          <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
+            "{spokenText || (isRecording ? 'Say the sentence...' : '')}"
+          </span>
+          {drillScore !== null && (
+            <Badge variant="success" style={{ marginLeft: 'auto' }}>
+              {drillScore}% Match
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* Record Action with Live Voice Wave Visualizer */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)', paddingTop: 'var(--space-1)' }}>
         <button
@@ -349,7 +410,7 @@ export const QuickSpeechLab: React.FC = () => {
           }}
         >
           {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
-          <span>{isRecording ? 'Listening... Tap to Done' : 'Tap to Repeat & Test'}</span>
+          <span>{isRecording ? 'Listening (Pause to finish)' : hasCompletedDrill ? 'Practice Again' : 'Tap to Repeat & Test'}</span>
         </button>
 
         {isRecording && (

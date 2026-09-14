@@ -189,6 +189,16 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Top Header (Desktop contextual + Mobile brand bar) */}
         <header className="top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            {/* Mobile Brand Logo */}
+            <div
+              className="mobile-logo-wrapper"
+              onClick={() => onTabChange('reading')}
+              style={{ cursor: 'pointer', alignItems: 'center' }}
+              title="SpeakFlow Home"
+            >
+              <BrandLogo size="sm" showTagline={false} collapsed={false} />
+            </div>
+
             {/* Section title */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <h2 className="typography-h3 header-section-title">

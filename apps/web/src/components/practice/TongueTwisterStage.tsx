@@ -21,25 +21,44 @@ export const TongueTwisterStage: React.FC<TongueTwisterStageProps> = ({
   const [recordedDuration, setRecordedDuration] = useState(0);
   const [transcript, setTranscript] = useState('');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [autoMicAfterListen, setAutoMicAfterListen] = useState(true);
 
   const activeTwister = twisters[currentIndex] || twisters[0];
 
+  const finishTwisterTurn = () => {
+    speechProvider.stopRealtimeRecognition();
+    setVoiceState('processing');
+    setTimeout(() => {
+      setVoiceState('result');
+    }, 800);
+  };
+
+  const startListening = () => {
+    setVoiceState('listening');
+    setRecordedDuration(1);
+    setTranscript('');
+
+    speechProvider.startRealtimeRecognition({
+      autoEndOnSilence: true,
+      silenceThresholdMs: 1500,
+      noSpeechTimeoutMs: 7000,
+      onTranscriptUpdate: (text) => setTranscript(text),
+      onSilenceDetected: () => {
+        finishTwisterTurn();
+      },
+      onNoSpeechTimeout: () => {
+        setVoiceState('ready');
+        setRecordedDuration(0);
+      },
+      onError: () => {}
+    });
+  };
+
   const handleToggleVoice = () => {
     if (voiceState === 'ready') {
-      setVoiceState('listening');
-      setRecordedDuration(1);
-      setTranscript('');
-
-      speechProvider.startRealtimeRecognition({
-        onTranscriptUpdate: (text) => setTranscript(text),
-        onError: () => {}
-      });
+      startListening();
     } else if (voiceState === 'listening') {
-      speechProvider.stopRealtimeRecognition();
-      setVoiceState('processing');
-      setTimeout(() => {
-        setVoiceState('result');
-      }, 1000);
+      finishTwisterTurn();
     } else {
       setVoiceState('ready');
       setRecordedDuration(0);
@@ -52,10 +71,16 @@ export const TongueTwisterStage: React.FC<TongueTwisterStageProps> = ({
     const rate = tempo === 'slow' ? 0.75 : tempo === 'fast' ? 1.25 : 1.0;
     speechProvider.synthesizeSpeech(activeTwister.text, { rate }).finally(() => {
       setIsPlayingAudio(false);
+      if (autoMicAfterListen) {
+        setTimeout(() => {
+          startListening();
+        }, 350);
+      }
     });
   };
 
   const handleNextTwister = () => {
+    speechProvider.stopRealtimeRecognition();
     setVoiceState('ready');
     setRecordedDuration(0);
     setTranscript('');

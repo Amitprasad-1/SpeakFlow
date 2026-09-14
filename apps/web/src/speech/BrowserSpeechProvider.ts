@@ -20,6 +20,23 @@ export class BrowserSpeechProvider implements SpeechProvider {
   private isListening = false;
   private visualizerSubscribers: ((data: AudioVisualizerData) => void)[] = [];
   private visualizerInterval: number | null = null;
+  private silenceTimer: any = null;
+  private noSpeechTimer: any = null;
+  private accumulatedTranscript = '';
+  private activeCallbacks: RecognitionCallbacks | null = null;
+  private shouldKeepListening = false;
+  private isExplicitlyStopped = false;
+
+  private clearSilenceTimers(): void {
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
+    }
+    if (this.noSpeechTimer) {
+      clearTimeout(this.noSpeechTimer);
+      this.noSpeechTimer = null;
+    }
+  }
 
   public async initialize(): Promise<boolean> {
     try {
@@ -104,7 +121,6 @@ export class BrowserSpeechProvider implements SpeechProvider {
         const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
         this.cleanupStream();
 
-        // Audio privacy: wrap buffer ephemeral processing
         const result: AudioRecordingResult = {
           audioBlob: blob,
           durationMs: 3000,
@@ -133,63 +149,136 @@ export class BrowserSpeechProvider implements SpeechProvider {
       return;
     }
 
-    try {
-      this.recognition = new SpeechRecognition();
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      this.recognition.onstart = () => {
-        this.isListening = true;
-        callbacks.onStart?.();
-      };
+    this.clearSilenceTimers();
+    this.activeCallbacks = callbacks;
+    this.accumulatedTranscript = '';
+    this.shouldKeepListening = true;
+    this.isExplicitlyStopped = false;
 
-      this.recognition.onresult = (event: any) => {
-        let fullTranscript = '';
-        let hasFinal = false;
-        for (let i = 0; i < event.results.length; i++) {
-          const res = event.results[i];
-          if (res && res[0]) {
-            fullTranscript += res[0].transcript;
-            if (res.isFinal) {
-              hasFinal = true;
+    // No-speech timeout guard: if mic was started but user says nothing within the timeout
+    if (callbacks.noSpeechTimeoutMs && callbacks.noSpeechTimeoutMs > 0) {
+      this.noSpeechTimer = setTimeout(() => {
+        if (this.isListening && !this.accumulatedTranscript.trim()) {
+          this.stopRealtimeRecognition();
+          callbacks.onNoSpeechTimeout?.();
+        }
+      }, callbacks.noSpeechTimeoutMs);
+    }
+
+    const createAndStart = () => {
+      try {
+        this.recognition = new SpeechRecognition();
+        // On mobile Android/iOS, continuous=true causes speech service to abort prematurely
+        this.recognition.continuous = !isMobile;
+        this.recognition.interimResults = true;
+        this.recognition.lang = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
+
+        this.recognition.onstart = () => {
+          this.isListening = true;
+          callbacks.onStart?.();
+        };
+
+        this.recognition.onresult = (event: any) => {
+          // Clear initial no-speech timeout as soon as any voice signal arrives
+          if (this.noSpeechTimer) {
+            clearTimeout(this.noSpeechTimer);
+            this.noSpeechTimer = null;
+          }
+
+          let fullTranscript = '';
+          let hasFinal = false;
+          for (let i = 0; i < event.results.length; i++) {
+            const res = event.results[i];
+            if (res && res[0]) {
+              fullTranscript += res[0].transcript;
+              if (res.isFinal) {
+                hasFinal = true;
+              }
             }
           }
-        }
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const res = event.results[i];
-          if (res && res.isFinal && res[0]) {
-            const words = res[0].transcript.trim().split(/\s+/);
-            words.forEach((w: string) => {
-              if (w) callbacks.onWordDetected?.(w, true, Date.now());
-            });
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const res = event.results[i];
+            if (res && res.isFinal && res[0]) {
+              const words = res[0].transcript.trim().split(/\s+/);
+              words.forEach((w: string) => {
+                if (w) callbacks.onWordDetected?.(w, true, Date.now());
+              });
+            }
           }
-        }
-        callbacks.onTranscriptUpdate?.(fullTranscript, hasFinal);
-      };
 
-      this.recognition.onspeechend = () => {
-        callbacks.onSpeechEnd?.();
-      };
+          this.accumulatedTranscript = fullTranscript;
+          callbacks.onTranscriptUpdate?.(fullTranscript, hasFinal);
 
-      this.recognition.onerror = (event: any) => {
-        console.warn('SpeechRecognition error:', event.error);
-        callbacks.onError?.(event.error);
-      };
+          // Intelligent silence auto-end
+          const trimmed = fullTranscript.trim();
+          if (callbacks.autoEndOnSilence && trimmed.length > 0) {
+            if (this.silenceTimer) clearTimeout(this.silenceTimer);
+            const threshold = callbacks.silenceThresholdMs || 1500;
+            this.silenceTimer = setTimeout(() => {
+              if (this.isListening && !this.isExplicitlyStopped) {
+                const textToEmit = this.accumulatedTranscript.trim();
+                this.stopRealtimeRecognition();
+                callbacks.onSilenceDetected?.(textToEmit);
+              }
+            }, threshold);
+          }
+        };
 
-      this.recognition.onend = () => {
-        this.isListening = false;
-        callbacks.onEnd?.();
-      };
+        this.recognition.onspeechend = () => {
+          callbacks.onSpeechEnd?.();
+          // Quicker finish on native speech-end event if speech was captured
+          if (callbacks.autoEndOnSilence && this.accumulatedTranscript.trim().length > 0) {
+            if (this.silenceTimer) clearTimeout(this.silenceTimer);
+            this.silenceTimer = setTimeout(() => {
+              if (this.isListening && !this.isExplicitlyStopped) {
+                const textToEmit = this.accumulatedTranscript.trim();
+                this.stopRealtimeRecognition();
+                callbacks.onSilenceDetected?.(textToEmit);
+              }
+            }, 600);
+          }
+        };
 
-      this.recognition.start();
-    } catch (e: any) {
-      callbacks.onError?.(e.message || 'Speech recognition initialization failed');
-    }
+        this.recognition.onerror = (event: any) => {
+          // 'no-speech' error is harmless and normal when user pauses
+          if (event.error !== 'no-speech') {
+            console.warn('SpeechRecognition notice:', event.error);
+          }
+          callbacks.onError?.(event.error);
+        };
+
+        this.recognition.onend = () => {
+          // If on mobile and continuous is false, restart if user is still actively supposed to be listening
+          if (this.shouldKeepListening && !this.isExplicitlyStopped && isMobile) {
+            setTimeout(() => {
+              if (this.shouldKeepListening && !this.isExplicitlyStopped) {
+                createAndStart();
+              }
+            }, 120);
+            return;
+          }
+
+          this.isListening = false;
+          callbacks.onEnd?.();
+        };
+
+        this.recognition.start();
+      } catch (e: any) {
+        callbacks.onError?.(e.message || 'Speech recognition initialization failed');
+      }
+    };
+
+    createAndStart();
   }
 
   public stopRealtimeRecognition(): void {
+    this.isExplicitlyStopped = true;
+    this.shouldKeepListening = false;
+    this.clearSilenceTimers();
+
     if (this.recognition) {
       try {
         this.recognition.stop();
@@ -308,8 +397,13 @@ export function speakText(text: string, options?: SpeakOptions): void {
   }
 
   try {
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.resume();
+    // Only cancel if actively speaking or pending to prevent canceling immediately queued utterances on mobile Safari
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      window.speechSynthesis.cancel();
+    }
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = options?.rate ?? 0.95;
@@ -334,19 +428,40 @@ export function speakText(text: string, options?: SpeakOptions): void {
     // Retain global reference to avoid Chromium garbage collection bug during long speech
     (window as any).__speakflowActiveUtterance = utterance;
 
+    // Safety timeout in case browser never fires onend (known mobile Chrome/Safari quirk)
+    const wordsCount = text.split(/\s+/).filter(Boolean).length;
+    const safetyDurationMs = Math.max(2500, (wordsCount / 100) * 60 * 1000 + 2000);
+    let hasResolved = false;
+
+    const safetyTimer = setTimeout(() => {
+      if (!hasResolved && (window as any).__speakflowActiveUtterance === utterance) {
+        hasResolved = true;
+        (window as any).__speakflowActiveUtterance = null;
+        options?.onEnd?.();
+      }
+    }, safetyDurationMs);
+
     utterance.onstart = () => {
       options?.onStart?.();
     };
 
     utterance.onend = () => {
-      (window as any).__speakflowActiveUtterance = null;
-      options?.onEnd?.();
+      if (!hasResolved) {
+        hasResolved = true;
+        clearTimeout(safetyTimer);
+        (window as any).__speakflowActiveUtterance = null;
+        options?.onEnd?.();
+      }
     };
 
     utterance.onerror = (e) => {
-      console.warn('SpeechSynthesis error:', e);
-      (window as any).__speakflowActiveUtterance = null;
-      options?.onError?.(e);
+      if (!hasResolved) {
+        hasResolved = true;
+        clearTimeout(safetyTimer);
+        console.warn('SpeechSynthesis notice:', e);
+        (window as any).__speakflowActiveUtterance = null;
+        options?.onError?.(e);
+      }
     };
 
     window.speechSynthesis.speak(utterance);

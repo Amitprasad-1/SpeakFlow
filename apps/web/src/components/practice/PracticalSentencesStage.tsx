@@ -20,25 +20,44 @@ export const PracticalSentencesStage: React.FC<PracticalSentencesStageProps> = (
   const [recordedDuration, setRecordedDuration] = useState(0);
   const [transcript, setTranscript] = useState('');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [autoMicAfterListen, setAutoMicAfterListen] = useState(true);
 
   const activeSentence = sentences[currentIndex] || sentences[0];
 
+  const finishListeningTurn = () => {
+    speechProvider.stopRealtimeRecognition();
+    setVoiceState('processing');
+    setTimeout(() => {
+      setVoiceState('result');
+    }, 700);
+  };
+
+  const startListening = () => {
+    setVoiceState('listening');
+    setRecordedDuration(1);
+    setTranscript('');
+
+    speechProvider.startRealtimeRecognition({
+      autoEndOnSilence: true,
+      silenceThresholdMs: 1400,
+      noSpeechTimeoutMs: 7000,
+      onTranscriptUpdate: (text) => setTranscript(text),
+      onSilenceDetected: () => {
+        finishListeningTurn();
+      },
+      onNoSpeechTimeout: () => {
+        setVoiceState('ready');
+        setRecordedDuration(0);
+      },
+      onError: () => {}
+    });
+  };
+
   const handleToggleVoice = () => {
     if (voiceState === 'ready') {
-      setVoiceState('listening');
-      setRecordedDuration(1);
-      setTranscript('');
-
-      speechProvider.startRealtimeRecognition({
-        onTranscriptUpdate: (text) => setTranscript(text),
-        onError: () => {}
-      });
+      startListening();
     } else if (voiceState === 'listening') {
-      speechProvider.stopRealtimeRecognition();
-      setVoiceState('processing');
-      setTimeout(() => {
-        setVoiceState('result');
-      }, 900);
+      finishListeningTurn();
     } else {
       setVoiceState('ready');
       setRecordedDuration(0);
@@ -50,10 +69,17 @@ export const PracticalSentencesStage: React.FC<PracticalSentencesStageProps> = (
     setIsPlayingAudio(true);
     speechProvider.synthesizeSpeech(activeSentence.text, { rate: 0.95 }).finally(() => {
       setIsPlayingAudio(false);
+      // Auto-start microphone after native speech playback finishes!
+      if (autoMicAfterListen) {
+        setTimeout(() => {
+          startListening();
+        }, 350);
+      }
     });
   };
 
   const handleNext = () => {
+    speechProvider.stopRealtimeRecognition();
     setVoiceState('ready');
     setRecordedDuration(0);
     setTranscript('');

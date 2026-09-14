@@ -80,8 +80,19 @@ export const SpeakingAssessmentStep: React.FC<SpeakingAssessmentStepProps> = ({
     try {
       await speechProvider.startRecording();
       speechProvider.startRealtimeRecognition({
+        autoEndOnSilence: true,
+        silenceThresholdMs: 2200,
+        noSpeechTimeoutMs: 12000,
         onTranscriptUpdate: (text) => {
           setTranscript(text);
+        },
+        onSilenceDetected: (finalText) => {
+          handleStopRecording(finalText);
+        },
+        onNoSpeechTimeout: () => {
+          if (voiceState === 'listening') {
+            handleStopRecording();
+          }
         },
         onError: (err) => {
           console.warn('Speech recognition notice:', err);
@@ -101,7 +112,7 @@ export const SpeakingAssessmentStep: React.FC<SpeakingAssessmentStepProps> = ({
     }
   };
 
-  const handleStopRecording = async () => {
+  const handleStopRecording = async (forcedText?: string) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -112,10 +123,11 @@ export const SpeakingAssessmentStep: React.FC<SpeakingAssessmentStepProps> = ({
     await speechProvider.stopRecording();
 
     const elapsedMs = Math.max(1500, Date.now() - startTimeRef.current);
+    const spokenText = forcedText || transcript;
 
     // Evaluate using core engine with honest metric observation
     setTimeout(() => {
-      const evaluation = AssessmentEngine.evaluateSpeakingAttempt(prompt, transcript, elapsedMs);
+      const evaluation = AssessmentEngine.evaluateSpeakingAttempt(prompt, spokenText, elapsedMs);
       setActiveResult(evaluation);
       setHasRecorded(true);
       setVoiceState('result');

@@ -78,6 +78,11 @@ export interface RecognitionCallbacks {
   onSpeechEnd?: () => void;
   onError?: (error: string) => void;
   onEnd?: () => void;
+  autoEndOnSilence?: boolean;
+  silenceThresholdMs?: number;
+  onSilenceDetected?: (transcript: string) => void;
+  noSpeechTimeoutMs?: number;
+  onNoSpeechTimeout?: () => void;
 }
 
 export interface AudioVisualizerData {

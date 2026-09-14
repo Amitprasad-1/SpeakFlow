@@ -36,21 +36,35 @@ export const ReadingAloudStage: React.FC<ReadingAloudStageProps> = ({
     };
   }, [isReading]);
 
+  const finishReadingSession = () => {
+    setIsReading(false);
+    speechProvider.stopRealtimeRecognition();
+    setIsDoneReading(true);
+  };
+
   const handleToggleReading = () => {
     if (!isReading) {
       setIsReading(true);
       speechProvider.startRealtimeRecognition({
+        autoEndOnSilence: true,
+        silenceThresholdMs: 2500, // Generous pause threshold for reading passages
+        noSpeechTimeoutMs: 12000,
         onTranscriptUpdate: (text) => {
           setTranscript(text);
           const words = text.trim().split(/\s+/).filter(Boolean).length;
           setWordsDetected(words);
         },
+        onSilenceDetected: () => {
+          // If user has read at least 6 words and paused for 2.5s, complete reading session
+          finishReadingSession();
+        },
+        onNoSpeechTimeout: () => {
+          setIsReading(false);
+        },
         onError: () => {}
       });
     } else {
-      setIsReading(false);
-      speechProvider.stopRealtimeRecognition();
-      setIsDoneReading(true);
+      finishReadingSession();
     }
   };
 

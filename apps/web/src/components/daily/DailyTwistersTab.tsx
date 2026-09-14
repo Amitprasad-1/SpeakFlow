@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   RotateCw
 } from 'lucide-react';
-import { speakText, stopSpeaking } from '../../speech/BrowserSpeechProvider';
+import { speakText, stopSpeaking, BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
 
 export interface DailyTwistersTabProps {
   currentDateString?: string;
@@ -38,18 +38,24 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [completedTwisters, setCompletedTwisters] = useState<Record<string, boolean>>({});
+  const [spokenTranscripts, setSpokenTranscripts] = useState<Record<string, string>>({});
+  const [twisterScores, setTwisterScores] = useState<Record<string, number>>({});
+
+  const speechProvider = React.useMemo(() => new BrowserSpeechProvider(), []);
 
   useEffect(() => {
     stopSpeaking();
+    speechProvider.stopRealtimeRecognition();
     setPlayingId(null);
     setRecordingId(null);
-  }, [currentDateString]);
+  }, [currentDateString, speechProvider]);
 
   useEffect(() => {
     return () => {
       stopSpeaking();
+      speechProvider.dispose();
     };
-  }, []);
+  }, [speechProvider]);
 
   const playTwister = (twister: TongueTwister, speed: 0.75 | 1.0 | 1.25) => {
     setPlayingId(twister.id);
@@ -61,19 +67,58 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
     });
   };
 
-  const handleToggleRecord = (id: string) => {
-    if (recordingId === id) {
-      setRecordingId(null);
-      setCompletedTwisters((prev) => ({ ...prev, [id]: true }));
+  const evaluateAndCompleteTwister = (twister: TongueTwister, text: string) => {
+    const cleanTarget = twister.text.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const cleanSpoken = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+
+    let score = 85;
+    if (cleanSpoken) {
+      const targetWords = cleanTarget.split(/\s+/).filter(Boolean);
+      const spokenWords = cleanSpoken.split(/\s+/).filter(Boolean);
+      let matchCount = 0;
+      targetWords.forEach(tw => {
+        if (spokenWords.includes(tw)) matchCount++;
+      });
+      score = Math.min(100, Math.max(65, Math.round((matchCount / Math.max(targetWords.length, 1)) * 100)));
+    }
+
+    setTwisterScores(prev => ({ ...prev, [twister.id]: score }));
+    setCompletedTwisters(prev => ({ ...prev, [twister.id]: true }));
+    setRecordingId(null);
+    speechProvider.stopRealtimeRecognition();
+  };
+
+  const handleToggleRecord = (twister: TongueTwister) => {
+    if (recordingId === twister.id) {
+      const currentText = spokenTranscripts[twister.id] || '';
+      evaluateAndCompleteTwister(twister, currentText);
       return;
     }
 
-    setRecordingId(id);
-    // Auto complete after 4 seconds
-    setTimeout(() => {
-      setRecordingId(null);
-      setCompletedTwisters((prev) => ({ ...prev, [id]: true }));
-    }, 4000);
+    // Stop speaking if model audio was playing
+    stopSpeaking();
+    setPlayingId(null);
+    setRecordingId(twister.id);
+    setSpokenTranscripts(prev => ({ ...prev, [twister.id]: '' }));
+
+    // Start real continuous microphone speech recognition
+    speechProvider.startRealtimeRecognition({
+      autoEndOnSilence: true,
+      silenceThresholdMs: 1400,
+      noSpeechTimeoutMs: 8000,
+      onTranscriptUpdate: (text: string) => {
+        setSpokenTranscripts(prev => ({ ...prev, [twister.id]: text }));
+      },
+      onSilenceDetected: (finalText: string) => {
+        evaluateAndCompleteTwister(twister, finalText);
+      },
+      onNoSpeechTimeout: () => {
+        setRecordingId(null);
+      },
+      onError: () => {
+        setRecordingId(null);
+      }
+    });
   };
 
   const completedCount = Object.values(completedTwisters).filter(Boolean).length;
@@ -137,9 +182,16 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
                 </div>
 
                 {isDone && (
-                  <Badge variant="success" icon={<CheckCircle2 size={12} />}>
-                    Completed
-                  </Badge>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {twisterScores[twister.id] && (
+                      <Badge variant="success">
+                        {twisterScores[twister.id]}% Match
+                      </Badge>
+                    )}
+                    <Badge variant="success" icon={<CheckCircle2 size={12} />}>
+                      Mastered
+                    </Badge>
+                  </div>
                 )}
               </div>
 
@@ -157,6 +209,19 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
                   💡 <strong>Coach tip:</strong> {twister.tip}
                 </span>
               </div>
+
+              {/* Live Spoken Output */}
+              {(isRecording || spokenTranscripts[twister.id]) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: isRecording ? 'rgba(239, 68, 68, 0.08)' : 'var(--color-surface-sunken)', borderRadius: 'var(--radius-sm)', border: `1px solid ${isRecording ? 'rgba(239, 68, 68, 0.25)' : 'var(--color-border-subtle)'}`, fontSize: 'var(--text-caption)' }}>
+                  <Mic size={13} color={isRecording ? '#ef4444' : 'var(--color-primary)'} />
+                  <span style={{ fontWeight: 600, color: isRecording ? '#ef4444' : 'var(--color-text-secondary)' }}>
+                    {isRecording ? 'Listening (stops on pause):' : 'Spoken:'}
+                  </span>
+                  <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                    "{spokenTranscripts[twister.id] || (isRecording ? 'Recite now...' : '')}"
+                  </span>
+                </div>
+              )}
 
               {/* Action Controls: Speed Selectors + Listen + Record */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border-subtle)' }}>
@@ -231,7 +296,7 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
                   </button>
 
                   <button
-                    onClick={() => handleToggleRecord(twister.id)}
+                    onClick={() => handleToggleRecord(twister)}
                     className={`speakflow-btn ${isRecording ? 'btn-variant-danger' : 'btn-variant-primary'} cta-breathing`}
                     style={{
                       display: 'inline-flex',
@@ -245,7 +310,7 @@ export const DailyTwistersTab: React.FC<DailyTwistersTabProps> = ({
                     }}
                   >
                     {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
-                    <span>{isRecording ? 'Recording... Tap Done' : 'Repeat & Test'}</span>
+                    <span>{isRecording ? 'Listening (Pause to finish)' : isDone ? 'Practice Again' : 'Repeat & Test'}</span>
                   </button>
 
                   {(isPlaying || isRecording) && (
