@@ -30,7 +30,9 @@ import {
   Languages,
   RotateCw,
   Calendar,
-  BookOpen
+  BookOpen,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { speakText, stopSpeaking, BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
 
@@ -72,6 +74,15 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
   // Filters & Search
   const [activeCategory, setActiveCategory] = useState<PhraseCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Pagination for Library mode
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(36);
+
+  // Reset pagination when filter/category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, searchQuery, viewMode, pageSize]);
 
   // Audio & Practice state
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -170,6 +181,16 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
 
     return list;
   }, [activeBaseList, activeCategory, favoriteIds, searchQuery]);
+
+  // Paginated phrases slice
+  const totalPages = Math.max(1, Math.ceil(filteredPhrases.length / (pageSize || 36)));
+  const displayedPhrases = useMemo(() => {
+    if (viewMode === 'daily' || pageSize === -1) {
+      return filteredPhrases;
+    }
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredPhrases.slice(startIndex, startIndex + pageSize);
+  }, [viewMode, filteredPhrases, currentPage, pageSize]);
 
   // Audio playback
   const handlePlayAudio = (phrase: HindiEnglishPhrase) => {
@@ -558,7 +579,7 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
         </Card>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
-          {filteredPhrases.map((phrase) => {
+          {displayedPhrases.map((phrase) => {
             const isPlaying = playingId === phrase.id;
             const isRecording = recordingId === phrase.id;
             const isFav = favoriteIds.has(phrase.id);
@@ -736,6 +757,164 @@ export const DailyPhrasesTab: React.FC<DailyPhrasesTabProps> = ({
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls for Library Mode */}
+      {viewMode === 'library' && filteredPhrases.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'var(--color-surface)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--color-border)',
+            marginTop: 'var(--space-4)'
+          }}
+        >
+          {/* Info label */}
+          <div style={{ fontSize: 'var(--text-body-sm)', color: 'var(--color-text-secondary)' }}>
+            Showing{' '}
+            <strong style={{ color: 'var(--color-text-primary)' }}>
+              {pageSize === -1 ? 1 : (currentPage - 1) * pageSize + 1}
+            </strong>
+            –
+            <strong style={{ color: 'var(--color-text-primary)' }}>
+              {pageSize === -1 ? filteredPhrases.length : Math.min(currentPage * pageSize, filteredPhrases.length)}
+            </strong>{' '}
+            of <strong style={{ color: 'var(--color-primary)' }}>{filteredPhrases.length}</strong> phrases
+          </div>
+
+          {/* Page Size Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--text-caption)' }}>
+            <span style={{ color: 'var(--color-text-muted)' }}>Per page:</span>
+            {[24, 36, 60, 120].map((size) => (
+              <button
+                key={size}
+                onClick={() => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-caption)',
+                  fontWeight: pageSize === size ? 700 : 500,
+                  background: pageSize === size ? 'var(--color-primary)' : 'var(--color-surface-hover)',
+                  color: pageSize === size ? '#ffffff' : 'var(--color-text-secondary)',
+                  border: `1px solid ${pageSize === size ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                  cursor: 'pointer'
+                }}
+              >
+                {size}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setPageSize(-1);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--text-caption)',
+                fontWeight: pageSize === -1 ? 700 : 500,
+                background: pageSize === -1 ? 'var(--color-primary)' : 'var(--color-surface-hover)',
+                color: pageSize === -1 ? '#ffffff' : 'var(--color-text-secondary)',
+                border: `1px solid ${pageSize === -1 ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                cursor: 'pointer'
+              }}
+            >
+              All
+            </button>
+          </div>
+
+          {/* Page navigation buttons */}
+          {pageSize !== -1 && totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--color-surface-hover)',
+                  border: '1px solid var(--color-border)',
+                  color: currentPage === 1 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  opacity: currentPage === 1 ? 0.4 : 1
+                }}
+                title="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {/* Page numbers preview */}
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                  .map((pageNum, idx, arr) => {
+                    const prev = arr[idx - 1];
+                    const showEllipsis = prev && pageNum - prev > 1;
+                    return (
+                      <React.Fragment key={pageNum}>
+                        {showEllipsis && (
+                          <span style={{ padding: '0 4px', color: 'var(--color-text-muted)', alignSelf: 'center' }}>
+                            ...
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage(pageNum)}
+                          style={{
+                            minWidth: '32px',
+                            height: '32px',
+                            padding: '0 6px',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: 'var(--text-caption)',
+                            fontWeight: currentPage === pageNum ? 700 : 500,
+                            background: currentPage === pageNum ? 'var(--color-primary)' : 'var(--color-surface-hover)',
+                            color: currentPage === pageNum ? '#ffffff' : 'var(--color-text-secondary)',
+                            border: `1px solid ${currentPage === pageNum ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {pageNum}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+              </div>
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--color-surface-hover)',
+                  border: '1px solid var(--color-border)',
+                  color: currentPage === totalPages ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  opacity: currentPage === totalPages ? 0.4 : 1
+                }}
+                title="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

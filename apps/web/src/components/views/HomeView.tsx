@@ -264,7 +264,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <span style={{ fontWeight: 700, fontSize: 'var(--text-body)', color: 'var(--color-text-primary)' }}>
                   Everyday Spoken Phrases (हिंदी ➔ English)
                 </span>
-                <Badge variant="warning" size="sm">88+ Phrases</Badge>
+                <Badge variant="warning" size="sm">520+ Phrases</Badge>
               </div>
               <p className="typography-caption" style={{ color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                 Master instant spoken English for real-life Hindi expressions ("मुझ पर हुक्म मत चलाओ", "बात खत्म", "दूर रहो").
