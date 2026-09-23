@@ -1286,4 +1286,205 @@
   animation: micPulseWave 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* --------------------------------------------------------------------------
+   Focus Flow Reading Mode (फोकस फ्लो रीडिंग मोड) Styles
+   -------------------------------------------------------------------------- */
+.focus-flow-container {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.focus-flow-item {
+  will-change: transform, opacity, filter;
+}
+
+.focus-flow-prev:hover {
+  opacity: 0.65 !important;
+  transform: scale(0.95) translateY(-2px) !important;
+}
+
+.focus-flow-next:hover {
+  opacity: 0.7 !important;
+  transform: scale(0.95) translateY(2px) !important;
+}
+
+.focus-flow-track-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.focus-flow-track-pill:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-primary-subtle);
+  transform: translateY(-1px);
+}
+
+.focus-flow-track-pill.is-active {
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.15);
+}
+
+.focus-flow-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 3px;
+}
+
+.focus-flow-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s ease;
+}
+
+.focus-flow-mode-btn.is-active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 767px) {
+  .focus-flow-container {
+    min-height: 320px !important;
+    padding: 16px 12px !important;
+  }
+  .focus-flow-active {
+    padding: 16px 16px !important;
+  }
+  .focus-flow-nav-arrow-up,
+  .focus-flow-nav-arrow-down {
+    display: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Kinetic Single-Sentence Reel Frame (एकल वाक्य सिनेमैटिक फ्लो)
+   -------------------------------------------------------------------------- */
+@keyframes kineticExitTop {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: translate3d(0, -110px, 0) scale(0.92);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+@keyframes kineticEnterBottom {
+  0% {
+    transform: translate3d(0, 110px, 0) scale(0.92);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+@keyframes kineticExitBottom {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: translate3d(0, 110px, 0) scale(0.92);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+@keyframes kineticEnterTop {
+  0% {
+    transform: translate3d(0, -110px, 0) scale(0.92);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+.kinetic-anim-exit-top {
+  animation: kineticExitTop 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.kinetic-anim-enter-bottom {
+  animation: kineticEnterBottom 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
+  z-index: 3;
+}
+
+.kinetic-anim-exit-bottom {
+  animation: kineticExitBottom 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.kinetic-anim-enter-top {
+  animation: kineticEnterTop 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
+  z-index: 3;
+}
+
+.kinetic-reticle-tl,
+.kinetic-reticle-tr,
+.kinetic-reticle-bl,
+.kinetic-reticle-br {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: var(--color-primary);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.kinetic-reticle-tl { top: 12px; left: 12px; border-top: 2px solid; border-left: 2px solid; border-top-left-radius: 4px; }
+.kinetic-reticle-tr { top: 12px; right: 12px; border-top: 2px solid; border-right: 2px solid; border-top-right-radius: 4px; }
+.kinetic-reticle-bl { bottom: 12px; left: 12px; border-bottom: 2px solid; border-left: 2px solid; border-bottom-left-radius: 4px; }
+.kinetic-reticle-br { bottom: 12px; right: 12px; border-bottom: 2px solid; border-right: 2px solid; border-bottom-right-radius: 4px; }
+
+
+
 

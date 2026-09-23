@@ -19,10 +19,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Video
+  Video,
+  Zap,
+  Layers,
+  Eye
 } from 'lucide-react';
+import { FocusFlowStage, FocusFlowItem } from './FocusFlowStage';
+import { getDailyFluencyDrill, FluencyDrillPassage } from '../../data/fluencyDrillsCatalog';
 import { ReadingVideoRecorder } from './ReadingVideoRecorder';
 import { speakText, stopSpeaking, BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
+
+export type ReadingTrack = 'fluency' | 'executive' | 'conversational';
+export type ReadingPresentationMode = 'focus-flow' | 'full-passage';
 
 export interface DailyReadingTabProps {
   currentDateString?: string;
@@ -31,27 +39,148 @@ export interface DailyReadingTabProps {
 export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   currentDateString
 }) => {
-  // Select today's reading passage (160-200 words) dynamically based on date
-  const passage: ReadingPassage = useMemo(() => {
+  // Reading Track Selection: Defaults to High-Energy Fluency Drills
+  const [activeTrack, setActiveTrack] = useState<ReadingTrack>('fluency');
+
+  // Presentation Mode: Focus Flow Mode (teleprompter reel stage) vs Full Passage
+  const [presentationMode, setPresentationMode] = useState<ReadingPresentationMode>('focus-flow');
+
+  // 1. Daily Fluency Drill Passage (Features "The Calculating Calculators" and rapid cadence challenges)
+  const fluencyPassage: FluencyDrillPassage = useMemo(() => {
+    return getDailyFluencyDrill(currentDateString);
+  }, [currentDateString]);
+
+  // 2. Curated Standard Passages (Executive Leadership and Conversational tracks)
+  const executivePassage: ReadingPassage = useMemo(() => {
     let dayNum = new Date().getDate();
     if (currentDateString) {
       const parts = currentDateString.split('-');
       if (parts.length === 3) dayNum = parseInt(parts[2], 10) || dayNum;
     }
+    const filtered = READING_PASSAGES_CATALOG.filter(
+      p => p.topic === 'Communication' || p.topic === 'Professional life' || p.topic === 'Psychology'
+    );
+    const pool = filtered.length > 0 ? filtered : READING_PASSAGES_CATALOG;
     const safeDay = Math.abs(dayNum);
-    const idx = safeDay % READING_PASSAGES_CATALOG.length;
-    return READING_PASSAGES_CATALOG[idx] || READING_PASSAGES_CATALOG[0];
+    return pool[safeDay % pool.length] || pool[0];
   }, [currentDateString]);
 
-  // Parse passage into clean individual sentences
-  const sentences = useMemo<string[]>(() => {
-    if (!passage?.passageText) return [];
-    const matches = passage.passageText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g);
-    if (!matches) return [passage.passageText];
-    return matches.map(s => s.trim()).filter(Boolean);
-  }, [passage?.passageText]);
+  const conversationalPassage: ReadingPassage = useMemo(() => {
+    let dayNum = new Date().getDate();
+    if (currentDateString) {
+      const parts = currentDateString.split('-');
+      if (parts.length === 3) dayNum = parseInt(parts[2], 10) || dayNum;
+    }
+    const filtered = READING_PASSAGES_CATALOG.filter(
+      p => p.topic === 'Daily life' || p.topic === 'Interesting facts' || p.topic === 'Nature'
+    );
+    const pool = filtered.length > 0 ? filtered : READING_PASSAGES_CATALOG;
+    const safeDay = Math.abs(dayNum);
+    return pool[safeDay % pool.length] || pool[0];
+  }, [currentDateString]);
 
-  // Automated reading state
+  // Active Passage Metadata based on track
+  const currentMetadata = useMemo(() => {
+    if (activeTrack === 'fluency') {
+      return {
+        id: fluencyPassage.id,
+        title: fluencyPassage.title,
+        topic: fluencyPassage.category,
+        wordCount: fluencyPassage.totalWords,
+        targetPhonemes: fluencyPassage.targetPhonemes,
+        readTime: '< 1 min drill'
+      };
+    } else if (activeTrack === 'executive') {
+      return {
+        id: executivePassage.id,
+        title: executivePassage.title,
+        topic: executivePassage.topic,
+        wordCount: executivePassage.wordCount,
+        targetPhonemes: executivePassage.targetPhonemes,
+        readTime: '~1 min read'
+      };
+    } else {
+      return {
+        id: conversationalPassage.id,
+        title: conversationalPassage.title,
+        topic: conversationalPassage.topic,
+        wordCount: conversationalPassage.wordCount,
+        targetPhonemes: conversationalPassage.targetPhonemes,
+        readTime: '~1 min read'
+      };
+    }
+  }, [activeTrack, fluencyPassage, executivePassage, conversationalPassage]);
+
+  // Build clean individual sentences with gradual level progression
+  const { sentences, flowItems, vocabularyList } = useMemo(() => {
+    if (activeTrack === 'fluency') {
+      const sList = fluencyPassage.sentences.map(s => s.text);
+      const fItems: FocusFlowItem[] = fluencyPassage.sentences.map(s => ({
+        text: s.text,
+        levelNumber: s.levelNumber,
+        levelLabel: s.levelLabel,
+        levelTone: s.levelTone,
+        focusTip: s.focusTip,
+        ipaHint: s.ipaHint
+      }));
+      const vList = fluencyPassage.keyVocabulary.map((v, i) => ({
+        id: `vocab_fl_${i}`,
+        word: v.word,
+        phoneticIpa: v.ipa,
+        definition: v.definition
+      }));
+      return { sentences: sList, flowItems: fItems, vocabularyList: vList };
+    }
+
+    // Standard passage tracks
+    const rawPassage = activeTrack === 'executive' ? executivePassage : conversationalPassage;
+    const matches = rawPassage.passageText.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g);
+    const sList = matches ? matches.map(s => s.trim()).filter(Boolean) : [rawPassage.passageText];
+
+    // Gradually calculate difficulty steps for standard passage sentences
+    const totalSentences = sList.length;
+    const fItems: FocusFlowItem[] = sList.map((text, idx) => {
+      const ratio = (idx + 1) / totalSentences;
+      if (ratio <= 0.28) {
+        return {
+          text,
+          levelNumber: 1,
+          levelLabel: `🟢 Step 1 · Warmup Rhythm (${idx + 1}/${totalSentences})`,
+          levelTone: 'warmup',
+          focusTip: 'Open your jaw comfortably and establish a relaxed breathing pace.'
+        };
+      } else if (ratio <= 0.62) {
+        return {
+          text,
+          levelNumber: 2,
+          levelLabel: `🔵 Step 2 · Rhythmic Flow (${idx + 1}/${totalSentences})`,
+          levelTone: 'flow',
+          focusTip: 'Observe commas for deliberate pauses and connect words naturally.'
+        };
+      } else if (ratio <= 0.88) {
+        return {
+          text,
+          levelNumber: 3,
+          levelLabel: `🟡 Step 3 · Cadence Acceleration (${idx + 1}/${totalSentences})`,
+          levelTone: 'agility',
+          focusTip: 'Emphasize operative nouns and maintain steady diaphragmatic breath support.'
+        };
+      } else {
+        return {
+          text,
+          levelNumber: 4,
+          levelLabel: `🔥 Step 4 · Articulation Climax (${idx + 1}/${totalSentences})`,
+          levelTone: 'climax',
+          focusTip: 'Deliver with high confidence and crisp terminal consonants.'
+        };
+      }
+    });
+
+    const vList = rawPassage.vocabularyWords || [];
+    return { sentences: sList, flowItems: fItems, vocabularyList: vList };
+  }, [activeTrack, fluencyPassage, executivePassage, conversationalPassage]);
+
+  // Automated reading & navigation state
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number>(0);
   const [isAutomatedRunning, setIsAutomatedRunning] = useState<boolean>(false);
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
@@ -84,7 +213,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
   const speechProvider = useMemo(() => new BrowserSpeechProvider(), []);
 
-  // Refs for timers and smooth scrolling
+  // Refs for timers & synchronized state
   const pacerTimerRef = useRef<any>(null);
   const recordTimerRef = useRef<any>(null);
   const sentenceRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -99,11 +228,11 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   pacerSpeedRef.current = pacerSpeed;
   const playAutomatedSentenceRef = useRef<(index: number) => void>(() => {});
 
-  // Reset when day or passage changes
+  // Reset when day, passage, or track changes
   useEffect(() => {
     resetPractice();
     setActiveSentenceIndex(0);
-  }, [currentDateString, passage.id]);
+  }, [currentDateString, currentMetadata.id, activeTrack]);
 
   // Clean up timers & speech on unmount
   useEffect(() => {
@@ -115,11 +244,13 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     };
   }, [speechProvider]);
 
-  // Smooth scroll active sentence into view
+  // Smooth scroll active sentence into view (in full passage view)
   const scrollToSentence = (index: number) => {
-    const el = sentenceRefs.current[index];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (presentationMode === 'full-passage') {
+      const el = sentenceRefs.current[index];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   };
 
@@ -145,7 +276,6 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     utterance.pitch = 1.0;
 
     utterance.onend = () => {
-      // When sentence finishes speaking, advance if auto reading is active and voice is still ON
       if (isAutomatedRunningRef.current && voiceEnabledRef.current) {
         if (index + 1 < sentences.length) {
           playAutomatedSentenceRef.current(index + 1);
@@ -170,10 +300,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
-  // Core automated sentence playback
+  // Core automated sentence flow playback
   const playAutomatedSentence = (index: number) => {
     if (index >= sentences.length) {
-      // Completed full passage!
       setIsAutomatedRunning(false);
       isAutomatedRunningRef.current = false;
       setHasCompleted(true);
@@ -232,13 +361,12 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     if (typeof window !== 'undefined') {
       localStorage.setItem('speakflow_reading_pacer_speed', String(wpm));
     }
-    // If auto-reading is currently active, immediately re-trigger current sentence with new rate and timing!
     if (isAutomatedRunningRef.current) {
       playAutomatedSentence(activeSentenceIndexRef.current);
     }
   };
 
-  // Handle Voice Toggle Button click (instant reactive connection)
+  // Handle Voice Toggle Button click
   const handleToggleVoice = () => {
     const nextVoice = !voiceEnabled;
     setVoiceEnabled(nextVoice);
@@ -249,10 +377,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
 
     if (nextVoice) {
-      // User turned Voice ON! If auto-reading is running or ready, speak current sentence immediately
       speakSentenceAloud(activeSentenceIndexRef.current);
     } else {
-      // User turned Voice OFF! Immediately silence speech synthesis
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
@@ -270,7 +396,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     playAutomatedSentence(startIndex);
   };
 
-  // Stop automated reading
+  // Stop / Pause automated reading
   const stopAutoReading = () => {
     setIsAutomatedRunning(false);
     isAutomatedRunningRef.current = false;
@@ -278,18 +404,30 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
   };
 
-  // Toggle automated reading (Interconnected with camera recording)
+  // Restart flow from beginning (Sentence 1)
+  const handleRestart = () => {
+    window.speechSynthesis?.cancel();
+    if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
+    setActiveSentenceIndex(0);
+    activeSentenceIndexRef.current = 0;
+    setSentenceProgress(0);
+    setHasCompleted(false);
+    scrollToSentence(0);
+
+    if (isAutomatedRunning) {
+      playAutomatedSentence(0);
+    }
+  };
+
+  // Toggle automated reading
   const toggleAutomatedReading = () => {
     if (isAutomatedRunning) {
-      // Pause
       stopAutoReading();
       return;
     }
-
-    // Start
     startAutoReading();
 
-    // Inter-connect: If camera mirror is open and not currently recording, trigger video recording simultaneously!
+    // Trigger video recorder if camera mirror is open and ready
     if (isVideoRecorderOpen && !isCameraRecording) {
       setRecordingTrigger(prev => prev + 1);
     }
@@ -301,7 +439,6 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     scrollToSentence(idx);
     setSentenceProgress(0);
 
-    // If already running automatically, continue from selected sentence
     if (isAutomatedRunning) {
       playAutomatedSentence(idx);
     }
@@ -327,7 +464,29 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
   };
 
-  // Microphone practice with real speech recognition and silence auto-end
+  // Keyboard navigation shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleAutomatedReading();
+      } else if (e.code === 'ArrowDown' || e.code === 'ArrowRight') {
+        e.preventDefault();
+        handleNextSentence();
+      } else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevSentence();
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        handleRestart();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAutomatedRunning, activeSentenceIndex, sentences.length]);
+
+  // Microphone practice with real speech recognition
   const stopMicPractice = () => {
     setIsRecording(false);
     speechProvider.stopRealtimeRecognition();
@@ -338,8 +497,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
     const durationSec = Math.max(1, readingSeconds);
     const mins = durationSec / 60;
-    // Calculate actual reading speed from detected words or passage word count
-    const words = spokenWordsCount > 5 ? spokenWordsCount : passage.wordCount;
+    const words = spokenWordsCount > 5 ? spokenWordsCount : currentMetadata.wordCount;
     const wpm = Math.min(350, Math.max(50, Math.round(words / mins)));
     setEstimatedWpm(wpm);
     setHasCompleted(true);
@@ -351,7 +509,6 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       return;
     }
 
-    // Pause automated reading when mic practice starts
     setIsAutomatedRunning(false);
     window.speechSynthesis?.cancel();
     if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
@@ -367,25 +524,18 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       setReadingSeconds(prev => prev + 1);
     }, 1000);
 
-    // Start real continuous microphone speech recognition
     speechProvider.startRealtimeRecognition({
       autoEndOnSilence: true,
-      silenceThresholdMs: 2800, // 2.8s natural pause threshold for passage reading
+      silenceThresholdMs: 2800,
       noSpeechTimeoutMs: 15000,
       onTranscriptUpdate: (text) => {
         setLiveSpokenTranscript(text);
         const count = text.trim().split(/\s+/).filter(Boolean).length;
         setSpokenWordsCount(count);
       },
-      onSilenceDetected: () => {
-        stopMicPractice();
-      },
-      onNoSpeechTimeout: () => {
-        stopMicPractice();
-      },
-      onError: (err) => {
-        console.warn('Daily reading mic recognition notice:', err);
-      }
+      onSilenceDetected: () => stopMicPractice(),
+      onNoSpeechTimeout: () => stopMicPractice(),
+      onError: (err) => console.warn('Daily reading mic recognition notice:', err)
     });
   };
 
@@ -405,7 +555,6 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     setIsRecording(false);
   };
 
-  // Play single sentence audio on demand
   const playSingleAudio = (idx: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (sentences[idx]) {
@@ -414,27 +563,100 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: '920px', margin: '0 auto', paddingBottom: 'var(--space-10)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxWidth: '920px', margin: '0 auto', paddingBottom: 'var(--space-10)' }}>
+      {/* 0. Track Switcher Pills: Fluency Drills vs Executive vs Conversational */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
+          padding: '8px 12px',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTrack('fluency')}
+            className={`focus-flow-track-pill ${activeTrack === 'fluency' ? 'is-active' : ''}`}
+            title="Daily speed cadence & rapid tongue-twister challenge drills (like viral reels)"
+          >
+            <Zap size={14} color={activeTrack === 'fluency' ? 'var(--color-primary)' : 'currentColor'} />
+            <span>⚡ Fluency Drills (Reels Style)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTrack('executive')}
+            className={`focus-flow-track-pill ${activeTrack === 'executive' ? 'is-active' : ''}`}
+            title="Executive leadership, persuasive rhetoric, and corporate boardroom speech"
+          >
+            <BookOpen size={14} color={activeTrack === 'executive' ? 'var(--color-primary)' : 'currentColor'} />
+            <span>👔 Executive & Leadership</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTrack('conversational')}
+            className={`focus-flow-track-pill ${activeTrack === 'conversational' ? 'is-active' : ''}`}
+            title="Everyday conversational flow, natural storytelling, and daily life"
+          >
+            <Sparkles size={14} color={activeTrack === 'conversational' ? 'var(--color-primary)' : 'currentColor'} />
+            <span>☕ Conversational Flow</span>
+          </button>
+        </div>
+
+        {/* Presentation Mode Switch: Focus Flow Mode vs Full Passage */}
+        <div className="focus-flow-mode-switch">
+          <button
+            type="button"
+            onClick={() => setPresentationMode('focus-flow')}
+            className={`focus-flow-mode-btn ${presentationMode === 'focus-flow' ? 'is-active' : ''}`}
+            title="Focus Flow Mode: Sentences glide vertically into spotlight one by one"
+          >
+            <Eye size={13} />
+            <span>Focus Flow</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPresentationMode('full-passage')}
+            className={`focus-flow-mode-btn ${presentationMode === 'full-passage' ? 'is-active' : ''}`}
+            title="Full Passage View: View all sentences together in document format"
+          >
+            <Layers size={13} />
+            <span>Full Passage</span>
+          </button>
+        </div>
+      </div>
+
       {/* 1. Header: Story Title & Reading Meta */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-              {passage.topic}
+              {currentMetadata.topic}
             </span>
             <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>•</span>
             <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-              {passage.wordCount} words
+              {currentMetadata.wordCount} words
             </span>
             <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>•</span>
             <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-              ~1 min read
+              {currentMetadata.readTime}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>•</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: 'var(--radius-pill)' }}>
+              Refreshed Daily
             </span>
           </div>
 
           <h1
             style={{
-              fontSize: 'clamp(1.5rem, 3vw, 2.2rem)',
+              fontSize: 'clamp(1.4rem, 2.8vw, 2.1rem)',
               fontWeight: 800,
               color: 'var(--color-text-primary)',
               lineHeight: 1.25,
@@ -442,7 +664,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               letterSpacing: '-0.02em'
             }}
           >
-            {passage.title}
+            {currentMetadata.title}
           </h1>
         </div>
 
@@ -496,7 +718,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         </div>
       </div>
 
-      {/* 2. Automated Action Toolbar */}
+      {/* 2. Clean Automated Control Panel Toolbar */}
       <div
         className="reading-player-toolbar"
         style={{
@@ -518,8 +740,9 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           transition: 'all 0.25s ease'
         }}
       >
-        {/* Left / Row 1: Main Automated Read Button + Voice + Speed */}
+        {/* Left Row: Start / Pause + Restart + Voice + Speed */}
         <div className="reading-player-row reading-player-row-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Main Start / Pause Button */}
           <button
             onClick={toggleAutomatedReading}
             className="btn-shimmer"
@@ -527,10 +750,10 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               isCameraRecording
                 ? 'Camera recording is active! Click to pause reading'
                 : isAutomatedRunning
-                ? 'Click to pause reading flow'
+                ? 'Click to pause reading flow (Spacebar)'
                 : isVideoRecorderOpen
                 ? 'Start auto-reading and video recording together'
-                : 'Start auto reading with paced sentence flow'
+                : 'Start auto reading with paced sentence flow (Spacebar)'
             }
             style={{
               display: 'inline-flex',
@@ -569,31 +792,54 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                   }}
                 />
                 <span className="reading-btn-label-desktop">
-                  {isAutomatedRunning ? 'Pause (Recording Live)' : 'Resume (Recording Live)'}
+                  {isAutomatedRunning ? 'Pause (Rec Live)' : 'Resume (Rec Live)'}
                 </span>
                 <span className="reading-btn-label-mobile">REC</span>
               </>
             ) : isAutomatedRunning ? (
               <>
                 <Pause size={15} />
-                <span className="reading-btn-label-desktop">Pause Reading</span>
+                <span className="reading-btn-label-desktop">Pause Flow</span>
                 <span className="reading-btn-label-mobile">Pause</span>
               </>
             ) : (
               <>
                 <Play size={15} fill="currentColor" />
-                <span className="reading-btn-label-desktop">
-                  {isVideoRecorderOpen ? 'Start Auto Reading & Rec' : 'Start Auto Reading'}
-                </span>
-                <span className="reading-btn-label-mobile">Auto Read</span>
+                <span className="reading-btn-label-desktop">Start Focus Flow</span>
+                <span className="reading-btn-label-mobile">Start Flow</span>
               </>
             )}
+          </button>
+
+          {/* Dedicated Restart Button */}
+          <button
+            onClick={handleRestart}
+            title="Restart from beginning (Press 'R')"
+            aria-label="Restart flow"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '7px 11px',
+              borderRadius: 'var(--radius-pill)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text-secondary)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <RotateCcw size={13} />
+            <span className="reading-btn-label-desktop">Restart</span>
           </button>
 
           {/* Voice Audio Toggle */}
           <button
             onClick={handleToggleVoice}
-            title={voiceEnabled ? 'Voice audio ON (Click to turn OFF)' : 'Voice audio OFF (Click to turn ON)'}
+            title={voiceEnabled ? 'Voice audio ON (Click to mute)' : 'Voice audio OFF (Click to listen along)'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -643,20 +889,21 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           </div>
         </div>
 
-        {/* Center/Right / Row 2: Sentence Stepper & Mic & Video */}
+        {/* Right Row: Next / Prev Sentence Stepper & Mic & Video */}
         <div className="reading-player-row reading-player-row-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Stepper */}
+          {/* Stepper (< Sentence X of Y >) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
               onClick={handlePrevSentence}
               disabled={activeSentenceIndex === 0}
-              aria-label="Previous sentence"
+              aria-label="Previous sentence (Left Arrow or Swipe Down)"
+              title="Previous sentence"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '26px',
-                height: '26px',
+                width: '28px',
+                height: '28px',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'var(--color-surface-sunken)',
@@ -664,7 +911,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 cursor: activeSentenceIndex === 0 ? 'not-allowed' : 'pointer'
               }}
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={15} />
             </button>
 
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)', minWidth: '65px', textAlign: 'center' }}>
@@ -674,13 +921,14 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             <button
               onClick={handleNextSentence}
               disabled={activeSentenceIndex === sentences.length - 1}
-              aria-label="Next sentence"
+              aria-label="Next sentence (Right Arrow or Swipe Up)"
+              title="Next sentence"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '26px',
-                height: '26px',
+                width: '28px',
+                height: '28px',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'var(--color-surface-sunken)',
@@ -688,11 +936,11 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 cursor: activeSentenceIndex === sentences.length - 1 ? 'not-allowed' : 'pointer'
               }}
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={15} />
             </button>
           </div>
 
-          {/* Record Mic */}
+          {/* Practice Mic Button */}
           <button
             onClick={toggleRecording}
             style={{
@@ -715,7 +963,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
             <span className="reading-btn-label-mobile">{isRecording ? `${readingSeconds}s` : 'Mic'}</span>
           </button>
 
-          {/* Record Video with Camera & Voice */}
+          {/* Record Video Button */}
           <button
             onClick={() => setIsVideoRecorderOpen(prev => !prev)}
             style={{
@@ -734,7 +982,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
               transition: 'all 0.15s ease',
               whiteSpace: 'nowrap'
             }}
-            title="Record video & voice practice with webcam"
+            title="Record video & speech with camera"
           >
             <Video size={14} color={isVideoRecorderOpen ? 'var(--color-primary)' : 'currentColor'} />
             <span className="reading-btn-label-desktop">{isVideoRecorderOpen ? 'Camera Live' : 'Record Video'}</span>
@@ -769,7 +1017,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 Webcam & Speech Live
               </span>
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                Floating camera mirror is active on your screen. You can move it between corners or record video practice!
+                Floating camera mirror is active. Start reading to see your facial articulation and record your practice!
               </span>
             </div>
           </div>
@@ -794,7 +1042,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         </div>
       )}
 
-      {/* Live Voice Recording Pill (When user is practicing with microphone) */}
+      {/* Live Voice Recording Pill */}
       {isRecording && (
         <div
           style={{
@@ -826,7 +1074,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                 </span>
               </div>
               <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                {liveSpokenTranscript ? `"${liveSpokenTranscript}"` : 'Read aloud the passage below... stops automatically when you finish & pause!'}
+                {liveSpokenTranscript ? `"${liveSpokenTranscript}"` : 'Read aloud the active sentence... pauses automatically when you stop!'}
               </p>
             </div>
           </div>
@@ -842,121 +1090,140 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         </div>
       )}
 
-      {/* 3. The Continuous Reading Canvas: Automated Flow */}
-      <div
-        style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-xl)',
-          padding: 'clamp(24px, 4vw, 36px)',
-          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
-          position: 'relative',
-          overflow: 'visible'
-        }}
-      >
+      {/* 3. MAIN PRESENTATION AREA: Focus Flow Mode vs Full Passage View */}
+      {presentationMode === 'focus-flow' ? (
+        <FocusFlowStage
+          items={flowItems}
+          activeIndex={activeSentenceIndex}
+          progressPercent={sentenceProgress}
+          isAutoRunning={isAutomatedRunning}
+          textSize={textSize}
+          onSelectIndex={handleSelectSentence}
+          onNext={handleNextSentence}
+          onPrev={handlePrevSentence}
+          onPlaySingleAudio={playSingleAudio}
+        />
+      ) : (
+        /* Full Passage Continuous Canvas */
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: textSize === 'large' ? '18px' : '14px',
-            lineHeight: textSize === 'large' ? 1.85 : 1.75
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-xl)',
+            padding: 'clamp(24px, 4vw, 36px)',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
+            position: 'relative'
           }}
         >
-          {sentences.map((sentence, idx) => {
-            const isActive = idx === activeSentenceIndex;
-            const isPast = idx < activeSentenceIndex;
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: textSize === 'large' ? '18px' : '14px',
+              lineHeight: textSize === 'large' ? 1.85 : 1.75
+            }}
+          >
+            {sentences.map((sentence, idx) => {
+              const isActive = idx === activeSentenceIndex;
+              const isPast = idx < activeSentenceIndex;
+              const item = flowItems[idx];
 
-            return (
-              <div
-                key={idx}
-                ref={(el) => (sentenceRefs.current[idx] = el)}
-                onClick={() => handleSelectSentence(idx)}
-                style={{
-                  position: 'relative',
-                  padding: isActive ? '14px 18px' : '8px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: isActive
-                    ? 'rgba(37, 99, 235, 0.09)'
-                    : 'transparent',
-                  borderLeft: isActive
-                    ? '4px solid var(--color-primary)'
-                    : isPast
-                    ? '4px solid rgba(16, 185, 129, 0.45)'
-                    : '4px solid transparent',
-                  opacity: isActive ? 1.0 : isPast ? 0.65 : 0.82,
-                  boxShadow: isActive ? '0 4px 16px rgba(37, 99, 235, 0.12)' : 'none',
-                  transition: 'all 0.25s ease',
-                  cursor: 'pointer'
-                }}
-              >
-                {/* Sentence text with audio button */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                  <span
-                    style={{
-                      fontSize: textSize === 'large' ? '1.3rem' : '1.125rem',
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      letterSpacing: '0.005em'
-                    }}
-                  >
-                    {sentence}
-                  </span>
+              return (
+                <div
+                  key={idx}
+                  ref={(el) => (sentenceRefs.current[idx] = el)}
+                  onClick={() => handleSelectSentence(idx)}
+                  style={{
+                    position: 'relative',
+                    padding: isActive ? '14px 18px' : '8px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    background: isActive
+                      ? 'rgba(37, 99, 235, 0.09)'
+                      : 'transparent',
+                    borderLeft: isActive
+                      ? '4px solid var(--color-primary)'
+                      : isPast
+                      ? '4px solid rgba(16, 185, 129, 0.45)'
+                      : '4px solid transparent',
+                    opacity: isActive ? 1.0 : isPast ? 0.65 : 0.82,
+                    boxShadow: isActive ? '0 4px 16px rgba(37, 99, 235, 0.12)' : 'none',
+                    transition: 'all 0.25s ease',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                    <div>
+                      {item?.levelLabel && (
+                        <span style={{ display: 'inline-block', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px' }}>
+                          {item.levelLabel}
+                        </span>
+                      )}
+                      <div
+                        style={{
+                          fontSize: textSize === 'large' ? '1.3rem' : '1.125rem',
+                          fontWeight: isActive ? 600 : 400,
+                          color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                          letterSpacing: '0.005em'
+                        }}
+                      >
+                        {sentence}
+                      </div>
+                    </div>
 
-                  {/* Audio button for active sentence */}
-                  {isActive && (
-                    <button
-                      type="button"
-                      onClick={(e) => playSingleAudio(idx, e)}
-                      title="Replay this sentence"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: 'var(--color-surface-sunken)',
-                        color: 'var(--color-primary)',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        marginTop: '2px',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <Volume2 size={14} />
-                    </button>
-                  )}
-                </div>
+                    {isActive && (
+                      <button
+                        type="button"
+                        onClick={(e) => playSingleAudio(idx, e)}
+                        title="Replay this sentence"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: 'var(--color-surface-sunken)',
+                          color: 'var(--color-primary)',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          marginTop: '2px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <Volume2 size={14} />
+                      </button>
+                    )}
+                  </div>
 
-                {/* Animated Speed Pacer Countdown Line under the active sentence */}
-                {isActive && isAutomatedRunning && (
-                  <div
-                    style={{
-                      marginTop: '10px',
-                      height: '3px',
-                      background: 'var(--color-border-subtle)',
-                      borderRadius: 'var(--radius-pill)',
-                      overflow: 'hidden'
-                    }}
-                  >
+                  {isActive && isAutomatedRunning && (
                     <div
                       style={{
-                        height: '100%',
-                        width: `${sentenceProgress}%`,
-                        background: 'linear-gradient(90deg, #10b981 0%, #38bdf8 100%)',
-                        transition: 'width 40ms linear'
+                        marginTop: '10px',
+                        height: '3px',
+                        background: 'var(--color-border-subtle)',
+                        borderRadius: 'var(--radius-pill)',
+                        overflow: 'hidden'
                       }}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${sentenceProgress}%`,
+                          background: 'linear-gradient(90deg, #10b981 0%, #38bdf8 100%)',
+                          transition: 'width 40ms linear'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 4. Completion Modal Card (Only shown when truly completed) */}
+      {/* 4. Completion Modal Card */}
       {hasCompleted && estimatedWpm && (
         <Card variant="default" padding="md" className="celebrate-pop" style={{ borderLeft: '4px solid var(--color-success)', background: 'var(--color-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
@@ -967,7 +1234,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
                   Reading Session Complete!
                 </div>
                 <div className="typography-caption" style={{ color: 'var(--color-text-secondary)' }}>
-                  You completed all {sentences.length} sentences ({passage.wordCount} words) smoothly!
+                  You completed all {sentences.length} sentences ({currentMetadata.wordCount} words) smoothly!
                 </div>
               </div>
             </div>
@@ -989,18 +1256,18 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
         </Card>
       )}
 
-      {/* 5. Key Vocabulary from Today's Story */}
-      {passage.vocabularyWords && passage.vocabularyWords.length > 0 && (
+      {/* 5. Key Vocabulary from Today's Story / Drill */}
+      {vocabularyList && vocabularyList.length > 0 && (
         <section style={{ marginTop: 'var(--space-4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-3)' }}>
             <BookOpen size={17} color="var(--color-primary)" />
             <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
-              Key Vocabulary from Today's Story
+              Key Vocabulary & Articulation Words
             </h3>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
-            {passage.vocabularyWords.map((vocab) => (
+            {vocabularyList.map((vocab: any) => (
               <div
                 key={vocab.id}
                 style={{
@@ -1032,8 +1299,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       <ReadingVideoRecorder
         isOpen={isVideoRecorderOpen}
         onClose={() => setIsVideoRecorderOpen(false)}
-        passageTitle={passage.title}
-        totalWords={passage.wordCount}
+        passageTitle={currentMetadata.title}
+        totalWords={currentMetadata.wordCount}
         sentences={sentences}
         currentSentenceIndex={activeSentenceIndex}
         totalSentences={sentences.length}
