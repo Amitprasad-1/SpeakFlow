@@ -25,12 +25,13 @@ import {
   Eye
 } from 'lucide-react';
 import { FocusFlowStage, FocusFlowItem } from './FocusFlowStage';
-import { getDailyFluencyDrill, FluencyDrillPassage } from '../../data/fluencyDrillsCatalog';
+import { getDailyFluencyDrill, FluencyDrillPassage, FLUENCY_DRILLS_CATALOG } from '../../data/fluencyDrillsCatalog';
 import { ReadingVideoRecorder } from './ReadingVideoRecorder';
 import { speakText, stopSpeaking, BrowserSpeechProvider } from '../../speech/BrowserSpeechProvider';
 
 export type ReadingTrack = 'fluency' | 'executive' | 'conversational';
 export type ReadingPresentationMode = 'focus-flow' | 'full-passage';
+export type PacerSpeedOption = 90 | 130 | 170 | 210 | 250;
 
 export interface DailyReadingTabProps {
   currentDateString?: string;
@@ -45,10 +46,13 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   // Presentation Mode: Focus Flow Mode (teleprompter reel stage) vs Full Passage
   const [presentationMode, setPresentationMode] = useState<ReadingPresentationMode>('focus-flow');
 
-  // 1. Daily Fluency Drill Passage (Features "The Calculating Calculators" and rapid cadence challenges)
+  // Selected Drill ID (Defaults to daily rotation, user can click any viral drill)
+  const [selectedDrillId, setSelectedDrillId] = useState<string | null>(null);
+
+  // 1. Daily Fluency Drill Passage (Selectable drill or daily rotation)
   const fluencyPassage: FluencyDrillPassage = useMemo(() => {
-    return getDailyFluencyDrill(currentDateString);
-  }, [currentDateString]);
+    return getDailyFluencyDrill(currentDateString, selectedDrillId || undefined);
+  }, [currentDateString, selectedDrillId]);
 
   // 2. Curated Standard Passages (Executive Leadership and Conversational tracks)
   const executivePassage: ReadingPassage = useMemo(() => {
@@ -189,16 +193,21 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     }
     return false;
   });
-  const [pacerSpeed, setPacerSpeed] = useState<120 | 150 | 180 | 210>(() => {
+  const [pacerSpeed, setPacerSpeed] = useState<PacerSpeedOption>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('speakflow_reading_pacer_speed');
-      if (saved && ['120', '150', '180', '210'].includes(saved)) {
-        return Number(saved) as 120 | 150 | 180 | 210;
+      if (saved && ['90', '120', '130', '150', '170', '180', '210', '250'].includes(saved)) {
+        const num = Number(saved);
+        if (num === 120) return 130;
+        if (num === 150) return 170;
+        if (num === 180) return 170;
+        return num as PacerSpeedOption;
       }
     }
-    return 150;
+    return 130;
   });
   const [sentenceProgress, setSentenceProgress] = useState<number>(0);
+  const [isBufferHolding, setIsBufferHolding] = useState<boolean>(false);
 
   const [textSize, setTextSize] = useState<'normal' | 'large'>('normal');
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -216,6 +225,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   // Refs for timers & synchronized state
   const pacerTimerRef = useRef<any>(null);
   const recordTimerRef = useRef<any>(null);
+  const bufferTimerRef = useRef<any>(null);
   const sentenceRefs = useRef<(HTMLDivElement | null)[]>([]);
   const pacerElapsedRef = useRef<number>(0);
   const isAutomatedRunningRef = useRef<boolean>(false);
@@ -224,7 +234,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   voiceEnabledRef.current = voiceEnabled;
   const activeSentenceIndexRef = useRef<number>(activeSentenceIndex);
   activeSentenceIndexRef.current = activeSentenceIndex;
-  const pacerSpeedRef = useRef<120 | 150 | 180 | 210>(pacerSpeed);
+  const pacerSpeedRef = useRef<PacerSpeedOption>(pacerSpeed);
   pacerSpeedRef.current = pacerSpeed;
   const playAutomatedSentenceRef = useRef<(index: number) => void>(() => {});
 
@@ -256,10 +266,11 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
   // Convert WPM speed to SpeechSynthesis rate
   const getSpeechRate = (wpm: number): number => {
-    if (wpm <= 120) return 0.85;
-    if (wpm <= 150) return 1.0;
-    if (wpm <= 180) return 1.15;
-    return 1.3;
+    if (wpm <= 90) return 0.8;
+    if (wpm <= 130) return 0.95;
+    if (wpm <= 170) return 1.15;
+    if (wpm <= 210) return 1.35;
+    return 1.5;
   };
 
   // Speak sentence aloud with Web Speech API
@@ -277,14 +288,21 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
     utterance.onend = () => {
       if (isAutomatedRunningRef.current && voiceEnabledRef.current) {
-        if (index + 1 < sentences.length) {
-          playAutomatedSentenceRef.current(index + 1);
-        } else {
-          setIsAutomatedRunning(false);
-          isAutomatedRunningRef.current = false;
-          setHasCompleted(true);
-          setEstimatedWpm(pacerSpeedRef.current);
-        }
+        setIsBufferHolding(true);
+        if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
+        bufferTimerRef.current = setTimeout(() => {
+          setIsBufferHolding(false);
+          if (isAutomatedRunningRef.current) {
+            if (index + 1 < sentences.length) {
+              playAutomatedSentenceRef.current(index + 1);
+            } else {
+              setIsAutomatedRunning(false);
+              isAutomatedRunningRef.current = false;
+              setHasCompleted(true);
+              setEstimatedWpm(pacerSpeedRef.current);
+            }
+          }
+        }, 1100);
       }
     };
 
@@ -300,16 +318,57 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
+  // Calculate intelligent, syllable-aware duration so hard tongue-twisters don't vanish too fast
+  const calculateReadingDuration = (sentence: string, targetWpm: number): number => {
+    if (!sentence) return 4000;
+    const words = sentence.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return 4000;
+
+    let weightedWordCount = 0;
+    for (const word of words) {
+      const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+      const charCount = clean.length;
+      const syllableCount = Math.max(1, (clean.match(/[aeiouy]{1,2}/g) || []).length);
+      // Hard or multisyllabic tongue-twister words take significantly longer to articulate
+      if (charCount > 8 || syllableCount >= 3) {
+        weightedWordCount += 1.65;
+      } else if (charCount > 5 || syllableCount >= 2) {
+        weightedWordCount += 1.25;
+      } else {
+        weightedWordCount += 1.0;
+      }
+    }
+
+    // Natural pauses at punctuation
+    const commaCount = (sentence.match(/[,;:]/g) || []).length;
+    const periodCount = (sentence.match(/[.!?]/g) || []).length;
+    const punctuationPauseMs = commaCount * 320 + periodCount * 450;
+
+    const baseDurationMs = (weightedWordCount / targetWpm) * 60 * 1000;
+    const totalDurationMs = baseDurationMs + punctuationPauseMs;
+
+    // Minimum floor so sentences NEVER vanish too fast
+    const minFloor = Math.max(3400, (130 / targetWpm) * 4800);
+    return Math.max(minFloor, totalDurationMs);
+  };
+
   // Core automated sentence flow playback
   const playAutomatedSentence = (index: number) => {
     if (index >= sentences.length) {
       setIsAutomatedRunning(false);
       isAutomatedRunningRef.current = false;
+      setIsBufferHolding(false);
       setHasCompleted(true);
       setEstimatedWpm(pacerSpeedRef.current);
       window.speechSynthesis?.cancel();
       return;
     }
+
+    if (bufferTimerRef.current) {
+      clearTimeout(bufferTimerRef.current);
+      bufferTimerRef.current = null;
+    }
+    setIsBufferHolding(false);
 
     setActiveSentenceIndex(index);
     activeSentenceIndexRef.current = index;
@@ -317,9 +376,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     setSentenceProgress(0);
 
     const currentSentence = sentences[index] || '';
-    const wordCount = currentSentence.split(/\s+/).filter(Boolean).length;
-    // Expected reading duration based on selected WPM (min 1200ms)
-    const durationMs = Math.max(1200, (wordCount / pacerSpeedRef.current) * 60 * 1000);
+    const durationMs = calculateReadingDuration(currentSentence, pacerSpeedRef.current);
 
     // 1. If voice audio is enabled, speak the sentence aloud
     if (voiceEnabledRef.current) {
@@ -336,18 +393,25 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
       const pct = Math.min(100, (pacerElapsedRef.current / durationMs) * 100);
       setSentenceProgress(pct);
 
-      // If voice is muted, timer advances to the next sentence automatically
+      // If voice is muted, timer advances to the next sentence automatically with a breathing buffer
       if (!voiceEnabledRef.current && pct >= 100) {
         clearInterval(pacerTimerRef.current);
         if (isAutomatedRunningRef.current) {
-          if (index + 1 < sentences.length) {
-            playAutomatedSentenceRef.current(index + 1);
-          } else {
-            setIsAutomatedRunning(false);
-            isAutomatedRunningRef.current = false;
-            setHasCompleted(true);
-            setEstimatedWpm(pacerSpeedRef.current);
-          }
+          // Graceful breathing hold (1.2s) so sentence doesn't vanish too fast
+          setIsBufferHolding(true);
+          bufferTimerRef.current = setTimeout(() => {
+            setIsBufferHolding(false);
+            if (isAutomatedRunningRef.current) {
+              if (index + 1 < sentences.length) {
+                playAutomatedSentenceRef.current(index + 1);
+              } else {
+                setIsAutomatedRunning(false);
+                isAutomatedRunningRef.current = false;
+                setHasCompleted(true);
+                setEstimatedWpm(pacerSpeedRef.current);
+              }
+            }
+          }, 1200);
         }
       }
     }, intervalMs);
@@ -355,7 +419,7 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   playAutomatedSentenceRef.current = playAutomatedSentence;
 
   // Handle WPM Speed Preset change (immediate reactive update)
-  const handlePacerSpeedChange = (wpm: 120 | 150 | 180 | 210) => {
+  const handlePacerSpeedChange = (wpm: PacerSpeedOption) => {
     setPacerSpeed(wpm);
     pacerSpeedRef.current = wpm;
     if (typeof window !== 'undefined') {
@@ -408,6 +472,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
   const handleRestart = () => {
     window.speechSynthesis?.cancel();
     if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
+    if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
+    setIsBufferHolding(false);
     setActiveSentenceIndex(0);
     activeSentenceIndexRef.current = 0;
     setSentenceProgress(0);
@@ -435,6 +501,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
   // Manual jump to specific sentence
   const handleSelectSentence = (idx: number) => {
+    if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
+    setIsBufferHolding(false);
     setActiveSentenceIndex(idx);
     scrollToSentence(idx);
     setSentenceProgress(0);
@@ -446,6 +514,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
   const handlePrevSentence = () => {
     if (activeSentenceIndex > 0) {
+      if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
+      setIsBufferHolding(false);
       const prev = activeSentenceIndex - 1;
       setActiveSentenceIndex(prev);
       scrollToSentence(prev);
@@ -456,6 +526,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
   const handleNextSentence = () => {
     if (activeSentenceIndex < sentences.length - 1) {
+      if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
+      setIsBufferHolding(false);
       const next = activeSentenceIndex + 1;
       setActiveSentenceIndex(next);
       scrollToSentence(next);
@@ -512,6 +584,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     setIsAutomatedRunning(false);
     window.speechSynthesis?.cancel();
     if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
+    if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
+    setIsBufferHolding(false);
 
     setHasCompleted(false);
     setEstimatedWpm(null);
@@ -545,6 +619,8 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
     speechProvider.stopRealtimeRecognition();
     if (pacerTimerRef.current) clearInterval(pacerTimerRef.current);
     if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    if (bufferTimerRef.current) clearTimeout(bufferTimerRef.current);
+    setIsBufferHolding(false);
 
     setSentenceProgress(0);
     setReadingSeconds(0);
@@ -632,6 +708,88 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Viral Drills Selector (Available when Fluency track is active) */}
+      {activeTrack === 'fluency' && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            padding: '12px 16px',
+            background: 'linear-gradient(135deg, rgba(74, 4, 10, 0.65) 0%, rgba(20, 1, 3, 0.85) 100%)',
+            border: '1.5px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '1rem' }}>🔥</span>
+              <span style={{ fontWeight: 800, fontSize: '0.8125rem', color: '#fca5a5', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Viral Speed Reading Reels & Challenges
+              </span>
+            </div>
+            <span style={{ fontSize: '0.6875rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+              Click any drill to challenge your speed articulation
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              overflowX: 'auto',
+              paddingBottom: '4px',
+              scrollbarWidth: 'thin'
+            }}
+          >
+            {FLUENCY_DRILLS_CATALOG.map((drill) => {
+              const isSelected = fluencyPassage.id === drill.id;
+              return (
+                <button
+                  key={drill.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDrillId(drill.id);
+                    resetPractice();
+                    setActiveSentenceIndex(0);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-pill)',
+                    border: isSelected
+                      ? '1.5px solid #ef4444'
+                      : '1px solid rgba(255, 255, 255, 0.15)',
+                    background: isSelected
+                      ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                      : 'rgba(255, 255, 255, 0.08)',
+                    color: '#ffffff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    boxShadow: isSelected ? '0 0 14px rgba(239, 68, 68, 0.5)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>{drill.emoji}</span>
+                  <span>{drill.title}</span>
+                  {drill.difficulty === 'Extreme Viral' && (
+                    <span style={{ fontSize: '0.625rem', background: 'rgba(0, 0, 0, 0.35)', padding: '2px 5px', borderRadius: '4px', color: '#fde047' }}>
+                      HOT
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 1. Header: Story Title & Reading Meta */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
@@ -862,17 +1020,19 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
 
           {/* Speed Presets */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--color-surface-sunken)', padding: '2px 4px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--color-border-subtle)' }}>
-            {([120, 150, 180, 210] as const).map(wpm => (
+            {([90, 130, 170, 210, 250] as const).map(wpm => (
               <button
                 key={wpm}
                 onClick={() => handlePacerSpeedChange(wpm)}
-                title={`Set reading pace to ${wpm} WPM`}
+                title={`Set reading pace to ${wpm} WPM (${wpm === 90 ? 'Practice' : wpm === 130 ? 'Natural' : wpm === 170 ? 'Fast' : wpm === 210 ? 'Reel Speed' : 'God Mode'})`}
                 aria-label={`${wpm} words per minute`}
                 style={{
                   padding: '3px 7px',
                   borderRadius: 'var(--radius-pill)',
                   border: 'none',
-                  background: pacerSpeed === wpm ? 'var(--color-primary)' : 'transparent',
+                  background: pacerSpeed === wpm
+                    ? (activeTrack === 'fluency' ? '#ef4444' : 'var(--color-primary)')
+                    : 'transparent',
                   color: pacerSpeed === wpm ? '#ffffff' : 'var(--color-text-secondary)',
                   fontSize: '0.6875rem',
                   fontWeight: 700,
@@ -1097,11 +1257,19 @@ export const DailyReadingTab: React.FC<DailyReadingTabProps> = ({
           activeIndex={activeSentenceIndex}
           progressPercent={sentenceProgress}
           isAutoRunning={isAutomatedRunning}
+          isBufferHolding={isBufferHolding}
           textSize={textSize}
           onSelectIndex={handleSelectSentence}
           onNext={handleNextSentence}
           onPrev={handlePrevSentence}
           onPlaySingleAudio={playSingleAudio}
+          onTogglePlayPause={toggleAutomatedReading}
+          isReelTheme={activeTrack === 'fluency'}
+          viralHook={fluencyPassage.viralHook}
+          drillEmoji={fluencyPassage.emoji}
+          drillTitle={fluencyPassage.title}
+          drillDifficulty={fluencyPassage.difficulty}
+          reelLines={fluencyPassage.reelLines}
         />
       ) : (
         /* Full Passage Continuous Canvas */
